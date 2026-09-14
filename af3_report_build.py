@@ -69,7 +69,7 @@ MLAB = {'iptm': 'ipTM', 'chain_pair_iptm': 'chain-pair ipTM', 'ranking_score': '
         'pae_inter_frac_lt5': 'PAE frac < 5 A', 'contact_prob_sum': 'contact prob. sum',
         'contact_prob_density': 'contact prob. density', 'contact_prob_max': 'contact prob. max',
         'n_contacts_p50': 'contacts > 0.5', 'contact_participation_ratio': 'contact particip. ratio',
-        'plddt_mean': 'mean pLDDT'}
+        'plddt_mean': 'mean pLDDT', 'ipsae': 'ipSAE', 'lis': 'LIS'}
 
 CELL = {(c['group'], c['metric']): c for c in D['cells']}
 REF = {r['group']: r for r in D['refs']}
@@ -1066,6 +1066,163 @@ def p_scramble(d):
                '10 pairs, which is still thin.')
 
 
+def p_local_pae(d):
+    L = D['local_pae']
+    LC = {(c['group'], c['metric']): c for c in L['cells']}
+    def lcell(g, m): return LC.get((g, m), {})
+    def lverd(g, m):
+        c = lcell(g, m)
+        return None if 'delta' not in c else ('PASS' if c.get('beats_baseline') else 'FAIL')
+    def any_auc(g, m): return (lcell(g, m) if m in ('ipsae', 'lis') else cell(g, m)).get('auc')
+    cut = L['cutoffs_angstrom']
+    d.newpage('exploratory: local PAE')
+    d.local_page = d.page
+    d.h1('Local PAE: ipSAE and LIS',
+         'Added after the stage-1 numbers had been seen, so exploratory and outside the pre-registered '
+         'panel. Both use only the confident interchain pairs - ipSAE those under '
+         f"{cut['ipsae']:.0f} A (Dunbrack 2025), LIS those under {cut['lis']:.0f} A (Kim et al. 2024) - so "
+         'an unconfident flank cannot dilute a real interface the way it dilutes ipTM. Same top-ranked '
+         'sample, same composition comparator.')
+
+    d.h2('The pre-registered tests, rescored', 'delta-AUC against the same composition baseline')
+    SH = {PRE[0]: 'Test 1', PRE[1]: 'Test 2a', PRE[2]: 'Test 2b', PRE[3]: 'Test 3', PRE[4]: 'Test 4',
+          'Homotypic only': 'Homotypic arm', 'Heterotypic only': 'Heterotypic arm'}
+    rows = []
+    for g in PRE + ARMS:
+        ci, cl = lcell(g, 'ipsae'), lcell(g, 'lis')
+        rows.append({'g': SH[g], 'n': f"{ci['n_pos']}/{ci['n_neg']}", 'iptm': auc_of(g, 'iptm'),
+                     'ia': ci.get('auc'), 'id': ci.get('delta'), 'idci': ci.get('delta_ci'),
+                     'iv': lverd(g, 'ipsae'), 'la': cl.get('auc'), 'ld': cl.get('delta'),
+                     'ldci': cl.get('delta_ci'), 'lv': lverd(g, 'lis')})
+    red = lambda k: (lambda r: CRIT if (r[k] or 0) < 0 else INK)
+    d.table([
+        {'title': 'group', 'key': 'g', 'w': 76},
+        {'title': 'n', 'key': 'n', 'w': 34, 'align': 'c'},
+        {'title': 'ipTM', 'key': 'iptm', 'w': 36, 'align': 'r', 'fmt': lambda v, r: f3(v),
+         'color': lambda r: INK2},
+        {'title': 'ipSAE', 'key': 'ia', 'w': 38, 'align': 'r', 'fmt': lambda v, r: f3(v), 'font': 'SB'},
+        {'title': 'delta', 'key': 'id', 'w': 38, 'align': 'r', 'fmt': lambda v, r: f3(v, True),
+         'color': red('id')},
+        {'title': 'delta 95% CI', 'key': 'idci', 'w': 62, 'align': 'c', 'fmt': lambda v, r: fci(v, True)},
+        {'title': '', 'key': 'iv', 'w': 36, 'badge': True},
+        {'title': 'LIS', 'key': 'la', 'w': 38, 'align': 'r', 'fmt': lambda v, r: f3(v), 'font': 'SB'},
+        {'title': 'delta', 'key': 'ld', 'w': 38, 'align': 'r', 'fmt': lambda v, r: f3(v, True),
+         'color': red('ld')},
+        {'title': 'delta 95% CI', 'key': 'ldci', 'w': 62, 'align': 'c', 'fmt': lambda v, r: fci(v, True)},
+        {'title': '', 'key': 'lv', 'w': 36, 'badge': True},
+    ], rows, rowh=12.4)
+    note = 'The ipTM column repeats page 1 for reference. Test 4 has no composition comparator.'
+    t2a = lcell(PRE[1], 'lis').get('delta_ci')
+    if t2a and abs(t2a[0]) < 1e-9:
+        note += (' The LIS interval for test 2a starts at exactly zero, on 4 jobs against 3, which '
+                 'does not clear it.')
+    d.y += 7
+    d.para(note + ' Every grouping, with q-values, is in appendix C.', size=7.2, color=MUTED)
+
+    d.y += 10
+    d.h2('Which PAE summary carries the signal',
+         'AUC by group; rho is Spearman against total residues, all 60 jobs')
+    RHO = {c['metric']: c['rho_length'] for c in D['confounds'] + L['confounds']}
+    G4 = [(PRE[0], 'Test 1'), (PRE[2], 'Test 2b'), ('Homotypic only', 'Homotypic arm'),
+          ('Heterotypic only', 'Heterotypic arm')]
+    SUMS = [('iptm', 'every pair'), ('pae_inter_mean', 'every pair'),
+            ('pae_inter_frac_lt10', 'every pair'), ('chain_pair_pae_min', 'single best pair'),
+            ('ipsae', f"pairs < {cut['ipsae']:.0f} A"), ('lis', f"pairs < {cut['lis']:.0f} A")]
+    rows = []
+    for m, uses in SUMS:
+        r = {'m': MLAB[m], 'u': uses, 'rho': RHO[m]}
+        r.update({f'a{i}': any_auc(g, m) for i, (g, _) in enumerate(G4)})
+        rows.append(r)
+    cols = [{'title': 'metric', 'key': 'm', 'w': 110},
+            {'title': 'scores', 'key': 'u', 'w': 78, 'color': lambda r: INK2}]
+    for i, (_, lab) in enumerate(G4):
+        cols.append({'title': lab, 'key': f'a{i}', 'w': 64, 'align': 'r', 'fmt': lambda v, r: f3(v),
+                     'fill': (lambda k: lambda r: div_color(r[k], 0.5, 0.35))(f'a{i}')})
+    cols.append({'title': 'rho vs length', 'key': 'rho', 'w': 60, 'align': 'r',
+                 'fmt': lambda v, r: f'{v:+.2f}',
+                 'color': lambda r: CRIT if abs(r['rho']) > 0.5 else INK2})
+    d.table(cols, rows, rowh=12.2)
+
+    d.y += 10
+    d.h2('Where the confident pairs are', 'jobs with any interchain pair under each cutoff, by class')
+    CLS = [('Positive, fuzzy heterotypic', lambda t: t['label'] == 'positive'
+            and t['job_id'] not in MEM and t['pair_type'] == 'heterotypic'),
+           ('Positive, fuzzy homotypic', lambda t: t['label'] == 'positive'
+            and t['job_id'] not in MEM and t['pair_type'] == 'homotypic'),
+           ('Positive, memorised control', lambda t: t['job_id'] in MEM),
+           ('Negative, noncognate', lambda t: t['neg_type'] == 'noncognate'),
+           ('Negative, cross-kingdom', lambda t: t['neg_type'] == 'cross_kingdom'),
+           ('Negative, charge-repulsive', lambda t: t['neg_type'] == 'charge_repulsive'),
+           ('Negative, hard zipper', lambda t: t['neg_type'] == 'hard_coiledcoil'),
+           ('Negative, homotypic', lambda t: t['neg_type'] == 'homo_negative'),
+           ('Scramble', lambda t: t['label'] == 'negative_scramble')]
+    rows = []
+    for lab, f in CLS:
+        sel = [t for t in D['table'] if f(t)]
+        top = max(sel, key=lambda t: t['ipsae'])
+        rows.append({'c': lab, 'i0': f"{sum(t['ipsae'] > 0 for t in sel)} of {len(sel)}",
+                     'im': statistics.median(t['ipsae'] for t in sel),
+                     'top': f"{top['ipsae']:.3f}  {top['job_id']}" if top['ipsae'] > 0 else '--',
+                     'l0': f"{sum(t['lis'] > 0 for t in sel)} of {len(sel)}",
+                     'lm': statistics.median(t['lis'] for t in sel)})
+    d.table([{'title': 'class', 'key': 'c', 'w': 150},
+             {'title': f"any pair < {cut['ipsae']:.0f} A", 'key': 'i0', 'w': 76, 'align': 'c'},
+             {'title': 'median ipSAE', 'key': 'im', 'w': 64, 'align': 'r',
+              'fmt': lambda v, r: f'{v:.3f}', 'font': 'SB'},
+             {'title': 'highest ipSAE', 'key': 'top', 'w': 76, 'align': 'r'},
+             {'title': f"any pair < {cut['lis']:.0f} A", 'key': 'l0', 'w': 76, 'align': 'c'},
+             {'title': 'median LIS', 'key': 'lm', 'w': 64, 'align': 'r',
+              'fmt': lambda v, r: f'{v:.3f}', 'font': 'SB'}], rows, rowh=12.2)
+
+    d.y += 10
+    d.h2('The sharpest contrasts', 'matched internal negatives and the scramble arm')
+    mi = {m['positive']: m for m in L['matched_internal']}
+    iv = lambda p, j: mi[p]['vals'][j]['ipsae']
+    ss = L['scramble_summary']['ipsae']
+    hom_scr = [p for p in L['scramble_pairs']
+               if TBL[p['parent']]['pair_type'] == 'homotypic' and p['parent_vals']['ipsae'] > 0]
+    order = ('Both matched contrasts keep the right order on ipSAE and LIS'
+             if all(all(m['correct'].values()) for m in L['matched_internal'])
+             else 'The matched contrasts do not all keep the right order')
+    d.para(f"{order}. Fos x Jun sharpens: ipSAE {iv('P07', 'P07'):.3f} against Fos x Fos "
+           f"{iv('P07', 'N28'):.3f}, where ipTM gave {TBL['P07']['iptm']:.2f} against "
+           f"{TBL['N28']['iptm']:.2f}. ACTR x NCBD scores {iv('P06', 'P06'):.3f} against "
+           f"{iv('P06', 'N26'):.3f} and {iv('P06', 'N27'):.3f} for the two homodimers. In the scramble "
+           f"arm the parent wins {ss['wins']} of {ss['n']} untied pairs (sign-test p = {ss['sign_p']:.3f}); "
+           f"the other {ss['ties']} score exactly zero on both sides. The homotypic confident pairs vanish "
+           'with the scramble ('
+           + ', '.join(f"{p['parent']} {p['parent_vals']['ipsae']:.3f} -> {p['scramble_vals']['ipsae']:.3f}"
+                       for p in hom_scr)
+           + '), which still cannot tell sequence-specific self-pairing from an identical-chain effect.',
+           size=7.6, color=INK2)
+
+    hom = lcell('Homotypic only', 'ipsae')
+    others = [c for c in L['cells'] if c.get('beats_baseline')
+              and c['group'] != 'Mutual-folding (memorised) positives']
+    under_min = all(any_auc(g, 'chain_pair_pae_min') >= max(any_auc(g, 'ipsae'), any_auc(g, 'lis'))
+                    for g, _ in G4)
+    het_pos = [t for t in D['table'] if t['label'] == 'positive' and t['job_id'] not in MEM
+               and t['pair_type'] == 'heterotypic']
+    hom_pos = [t for t in D['table'] if t['label'] == 'positive' and t['job_id'] not in MEM
+               and t['pair_type'] == 'homotypic']
+    d.y += 10
+    d.takeaway(
+        f"Scoring only the confident pairs changes no verdict. It lifts test 2b from "
+        f"{auc_of(PRE[2], 'iptm'):.2f} to {lcell(PRE[2], 'ipsae')['auc']:.2f} and the homotypic arm from "
+        f"{auc_of('Homotypic only', 'iptm'):.2f} to {hom['auc']:.2f} - enough that its delta interval now "
+        f"includes zero ({hom['delta']:+.2f} [{hom['delta_ci'][0]:+.2f}, {hom['delta_ci'][1]:+.2f}]) where "
+        f"ipTM's excluded it, not enough to beat composition - and drops the heterotypic arm from "
+        f"{auc_of('Heterotypic only', 'iptm'):.2f} to {lcell('Heterotypic only', 'ipsae')['auc']:.2f}. "
+        + ('Outside the memorised controls no cell beats composition' if not others
+           else f'Outside the memorised controls {len(others)} cells beat composition')
+        + (', and neither score out-ranks chain-pair PAE min, the crudest local summary already in the '
+           'panel, in any of the four groups above. ' if under_min else '. ')
+        + f"The class table is why: {sum(t['ipsae'] == 0 for t in het_pos)} of {len(het_pos)} "
+        f"heterotypic fuzzy positives have no interchain pair under {cut['ipsae']:.0f} A, and the "
+        f"homotypic ones top out at ipSAE {max(t['ipsae'] for t in hom_pos):.3f}. A local score can only "
+        'sharpen an interface AF3 has actually built.')
+
+
 def p_methods(d):
     d.newpage('methods')
     d.h1('How every number here was produced',
@@ -1081,7 +1238,8 @@ def p_methods(d):
          'negatives independently.'),
         ('p and q', 'Two-sided permutation test on the label assignment, 10,000 permutations, then '
          'Benjamini-Hochberg across the 16-metric panel within each group. Groups with fewer than 3 '
-         'on either side are reported as descriptive only.'),
+         'on either side are reported as descriptive only. ipSAE and LIS are corrected against the '
+         'same 16 plus their own 2, so the panel q-values are untouched.'),
         ('Composition baseline', 'Leave-one-out logistic regression on 24 cheap pair features '
          '(NCPR, FCR, aromatic and G/S content, hydropathy, length, charge complementarity, '
          'homotypic flag - means and absolute differences per pair). Fitted on the 52 real-sequence '
@@ -1090,11 +1248,20 @@ def p_methods(d):
         ('Delta-AUC', 'Paired bootstrap on AUC(AF3) - AUC(baseline), 5,000 resamples, resampling the '
          'same jobs for both score vectors. A test passes only if the 95% interval excludes zero. '
          'This is the pre-registered primary criterion; beating 0.5 is not the bar.'),
+        ('Local PAE scores', 'Both come from the full PAE matrix of the same top-ranked sample. '
+         f"ipSAE follows ipsae.py (Dunbrack 2025), d0res variant: for each residue, partners with PAE "
+         f"< {D['local_pae']['cutoffs_angstrom']['ipsae']:.0f} A are kept, d0 is set from their number "
+         '(floored at 26 residues and 1 A), 1/(1+(PAE/d0)^2) is averaged over them, and the score is '
+         'the best residue in the better direction. LIS follows Kim et al. 2024: the mean of '
+         f"1 - PAE/{D['local_pae']['cutoffs_angstrom']['lis']:.0f} over interchain pairs with PAE below "
+         f"{D['local_pae']['cutoffs_angstrom']['lis']:.0f} A, per direction, averaged over both. Both "
+         'match a residue-by-residue transcription of the reference code on all 60 jobs to 1e-16.'),
         ('Pre-registered versus exploratory', 'Pre-registered: the five subsets on page 1, the '
          'homotypic/heterotypic split, the 16-metric panel with BH correction, and the length '
          'confound flag. Exploratory, and labelled as such: the negative-subtype, evidence-grade and '
-         'positive-subgroup groupings, the length-adjusted sensitivity analysis, and the paired '
-         'scramble test.'),
+         'positive-subgroup groupings, the length-adjusted sensitivity analysis, the paired '
+         f'scramble test, and the two local PAE scores on page {d.local_page} and in appendix C, '
+         'which were added after the stage-1 numbers had been seen.'),
         ('Known caveats carried from the plan', 'Structure templates were on for all 95 chain '
          'entries (server default). 59 jobs ran on seed 1 and N24 on a server-assigned seed. Five '
          'samples share one seed, so spread is sample spread, not seed replication. 21 of 31 '
@@ -1103,8 +1270,9 @@ def p_methods(d):
          'has_clash appears in the plan\'s metric list but not in the parser\'s panel; it is true in '
          'some sample of P13 and P17 only.'),
         ('Files', 'af3_report_data.json holds every number in this report; af3_all_statistics.csv is '
-         'the full 496-cell table (31 groups x 16 metrics); af3_scored.csv is the per-job scored '
-         'table written by parse_af3_results.py.'),
+         'the full table - 496 panel cells (31 groups x 16 metrics), then 62 exploratory rows with '
+         'metric ipsae or lis; af3_scored.csv is the per-job scored table written by '
+         'parse_af3_results.py, with ipsae and lis as its last columns.'),
     ]
     for title, body in blocks:
         d.text(ML, d.y, title, 'SB', 8.2, ACCENT); d.y += 11
@@ -1219,13 +1387,82 @@ def p_appendix_stats(d):
             i += 1
 
 
+def p_appendix_local(d):
+    L = D['local_pae']
+    LC = {(c['group'], c['metric']): c for c in L['cells']}
+    names = [m['name'] for m in L['metrics']]
+    passed = [c for c in L['cells'] if c.get('beats_baseline')]
+    n_mem = sum(1 for c in passed if c['group'] == 'Mutual-folding (memorised) positives')
+    where = ((('both' if len(passed) == 2 else 'all') + ' in the memorised-control block')
+             if passed and n_mem == len(passed) else f'{n_mem} of them in the memorised-control block')
+    d.newpage('appendix C / local PAE')
+    d.h1('Appendix C - local PAE, every group',
+         f"31 groupings x ipSAE and LIS = {len(L['cells'])} exploratory cells, in the layout of appendix "
+         'B. q is Benjamini-Hochberg over the group\'s 16 panel metrics plus these two. A PASS badge '
+         f'marks a delta interval clear of zero: {len(passed)} cells qualify, {where}.')
+    cols = [{'title': 'group', 'key': 'g', 'w': 104, 'font': 'N'},
+            {'title': 'n', 'key': 'n', 'w': 30, 'align': 'c', 'font': 'N'}]
+    for m in names:
+        cols += [{'title': MLAB[m], 'key': f'{m}_auc', 'w': 34, 'align': 'r', 'font': 'NB',
+                  'fmt': lambda v, r: f3(v)},
+                 {'title': 'q', 'key': f'{m}_q', 'w': 34, 'align': 'r', 'font': 'N',
+                  'fmt': lambda v, r: 'n<3' if r.get('small') else fp(v)},
+                 {'title': 'delta', 'key': f'{m}_d', 'w': 34, 'align': 'r', 'font': 'N',
+                  'fmt': lambda v, r: f3(v, True)},
+                 {'title': 'delta 95% CI', 'key': f'{m}_dci', 'w': 54, 'align': 'c', 'font': 'N',
+                  'fmt': lambda v, r: fci(v, True)},
+                 {'title': '', 'key': f'{m}_v', 'w': 30, 'badge': True}]
+    rows = []
+    for fam in FAMS:
+        rows.append({'_sub': fam})
+        for g in GBF[fam]:
+            r = {'g': g[3:] if g.startswith('vs ') else g}
+            for m in names:
+                c = LC.get((g, m), {})
+                r['n'], r['small'] = f"{c.get('n_pos')}/{c.get('n_neg')}", c.get('small_n')
+                r.update({f'{m}_auc': c.get('auc'), f'{m}_q': c.get('q'), f'{m}_d': c.get('delta'),
+                          f'{m}_dci': c.get('delta_ci'),
+                          f'{m}_v': 'PASS' if c.get('beats_baseline') else None})
+            rows.append(r)
+    d.table(cols, rows, size=6.7, rowh=10.2, font='N')
+
+    d.newpage('appendix C / local PAE')
+    d.text(ML, d.y, 'Appendix C continued - local PAE, every job', 'SB', 10, INK); d.y += 16
+    rows = [{'job_id': t['job_id'], 'ch': f"{t['chain_A']} x {t['chain_B']}",
+             'lab': t['label'].replace('negative_scramble', 'scramble'),
+             'cls': t['neg_type'] or t['binding_mode'], 'len': int(float(t['total_residues'])),
+             'iptm': t['iptm'], 'pmin': t['chain_pair_pae_min'], 'f10': t['pae_inter_frac_lt10'],
+             'ipsae': t['ipsae'], 'lis': t['lis']}
+            for t in sorted(D['table'], key=lambda t: t['job_id'])]
+    d.table([{'title': 'ID', 'key': 'job_id', 'w': 24, 'font': 'NB'},
+             {'title': 'chains', 'key': 'ch', 'w': 118, 'font': 'N'},
+             {'title': 'label', 'key': 'lab', 'w': 50, 'font': 'N'},
+             {'title': 'class', 'key': 'cls', 'w': 70, 'font': 'N'},
+             {'title': 'res', 'key': 'len', 'w': 26, 'align': 'r', 'font': 'N'},
+             {'title': 'ipTM', 'key': 'iptm', 'w': 32, 'align': 'r', 'font': 'N',
+              'fmt': lambda v, r: f'{v:.2f}'},
+             {'title': 'PAE min', 'key': 'pmin', 'w': 46, 'align': 'r', 'font': 'N',
+              'fmt': lambda v, r: f'{v:.1f}'},
+             {'title': 'PAE < 10 A', 'key': 'f10', 'w': 50, 'align': 'r', 'font': 'N',
+              'fmt': lambda v, r: f'{v:.3f}'},
+             {'title': 'ipSAE', 'key': 'ipsae', 'w': 44, 'align': 'r', 'font': 'NB',
+              'fmt': lambda v, r: f'{v:.3f}'},
+             {'title': 'LIS', 'key': 'lis', 'w': 44, 'align': 'r', 'font': 'NB',
+              'fmt': lambda v, r: f'{v:.3f}'}], rows, size=6.8, rowh=10.4, font='N', zebra=True)
+    d.y += 6
+    d.para('PAE min = chain-pair minimum interchain PAE (A). PAE < 10 A = fraction of interchain pairs '
+           'under 10 A. ipSAE and LIS as defined on the methods page; 0 means no interchain pair '
+           'cleared the cutoff.', size=6.8, color=MUTED)
+
+
 def write_csv():
     with open(CSV_OUT, 'w', newline='') as f:
         w = csv.writer(f)
         w.writerow(['family', 'group', 'metric', 'n_pos', 'n_neg', 'auc', 'ci_lo', 'ci_hi',
                     'perm_p', 'bh_q', 'baseline_auc', 'delta_auc', 'delta_ci_lo', 'delta_ci_hi',
                     'beats_baseline', 'small_n', 'length_only_auc'])
-        for c in D['cells']:
+        # the 496 panel cells, then the 62 exploratory local-PAE cells (metric ipsae / lis)
+        for c in D['cells'] + D['local_pae']['cells']:
             rf = REF[c['group']]
             ci = c.get('ci') or [None, None]
             dci = c.get('delta_ci') or [None, None]
@@ -1239,8 +1476,8 @@ def main():
     d = Doc()
     p_cover(d); p_forest(d); p_pipeline(d); p_primary(d); p_arms(d)
     p_negtypes(d); p_evidence(d); p_positives(d); p_secondary(d)
-    p_length(d); p_leakage(d); p_scramble(d); p_methods(d)
-    p_appendix_jobs(d); p_appendix_stats(d)
+    p_length(d); p_leakage(d); p_scramble(d); p_local_pae(d); p_methods(d)
+    p_appendix_jobs(d); p_appendix_stats(d); p_appendix_local(d)
     d.check()
     d.c.save()
     write_csv()

@@ -15,7 +15,9 @@ Reads BOTH confidence files per seed:
   *full_data*.json             pae [ntok,ntok], contact_probs [ntok,ntok],
                                atom_plddts [natom], token_chain_ids, atom_chain_ids
 
-and derives the interchain-block metrics that matter when ipTM is floored.
+and derives the interchain-block metrics that matter when ipTM is floored, plus two
+local PAE scores (ipSAE, LIS) added after stage 1 as an exploratory block: they are
+written to the scored table but kept out of the pre-registered 16-metric panel.
 Pass --no-full-data to skip the large files (summary metrics only, much faster).
 
 Writes af3_scored.csv and prints the pre-registered tests plus the secondary panel
@@ -31,6 +33,8 @@ import numpy as np
 CONTACT_P = 0.5      # "a contact" for counting purposes
 PAE_CONF = 10.0      # Angstrom; interchain token pairs below this are "confident"
 PAE_TIGHT = 5.0
+IPSAE_CUTOFF = 10.0  # Angstrom; the cutoff ipsae.py's README uses for AF3 (15 for AF2)
+LIS_CUTOFF = 12.0    # Angstrom; Kim et al. 2024
 
 # ---------------------------------------------------------------- file discovery
 
@@ -102,6 +106,45 @@ def summary_metrics(d):
     return m
 
 
+def _d0(n):
+    """TM-score d0 for n residues, floored as in ipsae.py (n >= 26, d0 >= 1 A)."""
+    n = np.maximum(26.0, np.asarray(n, dtype=float))
+    return np.maximum(1.0, 1.24 * np.cbrt(n - 15.0) - 1.8)
+
+
+def ipsae(pae, A, B, cutoff=IPSAE_CUTOFF):
+    """
+    ipSAE (Dunbrack 2025), the d0res variant ipsae.py reports as 'ipSAE'. For each
+    residue of one chain, keep only partner residues with PAE < cutoff, set d0 from how
+    many there are, and average 1/(1+(PAE/d0)^2) over them. The score is the best
+    residue in the better direction, so unconfident flanks cannot dilute an interface.
+    """
+    best = 0.0
+    for X, Y in ((A, B), (B, A)):
+        blk = pae[np.ix_(X, Y)]
+        ok = blk < cutoff
+        n = ok.sum(axis=1)
+        if not n.any():
+            continue
+        tm = np.where(ok, 1.0 / (1.0 + (blk / _d0(n)[:, None]) ** 2), 0.0)
+        best = max(best, float((tm.sum(axis=1) / np.maximum(n, 1)).max()))
+    return best
+
+
+def lis(pae, A, B, cutoff=LIS_CUTOFF):
+    """
+    Local Interaction Score (Kim et al. 2024): mean of 1 - PAE/cutoff over the
+    interchain pairs with PAE < cutoff, per direction, then averaged over the two
+    directions as ipsae.py and the authors' lis.py both do. 0 if no pair qualifies.
+    """
+    per_dir = []
+    for X, Y in ((A, B), (B, A)):
+        v = pae[np.ix_(X, Y)]
+        v = v[v < cutoff]
+        per_dir.append(float((1.0 - v / cutoff).mean()) if v.size else 0.0)
+    return sum(per_dir) / 2
+
+
 def interchain_metrics(full):
     """
     Everything derived from the token x token blocks. These are the metrics that can
@@ -123,6 +166,9 @@ def interchain_metrics(full):
     # fractions are length-normalised; min is a max-statistic and grows with chain length
     out['pae_inter_frac_lt10'] = float((block < PAE_CONF).mean())
     out['pae_inter_frac_lt5'] = float((block < PAE_TIGHT).mean())
+    # exploratory, added after stage 1: scores built only from the confident pairs
+    out['ipsae'] = ipsae(pae, A, B)
+    out['lis'] = lis(pae, A, B)
 
     cp = np.asarray(full['contact_probs'], dtype=float)
     cblock = cp[np.ix_(A, B)]
@@ -158,6 +204,8 @@ METRICS = [
     ('plddt_mean', +1),
 ]
 PRIMARY = 'iptm'
+# Added after stage 1 was scored, so never part of the pre-registered panel or its BH family.
+EXPLORATORY = [('ipsae', +1), ('lis', +1)]
 
 
 # ---------------------------------------------------------------- statistics
@@ -279,7 +327,7 @@ def main(results_dir, pairs_csv='af3_idr_pairs.csv', want_full=True):
         # rank seeds by the model's own ranking_score so "best" means AF3's best
         best_i = max(range(len(per_seed)),
                      key=lambda i: per_seed[i].get('ranking_score') or -1e9)
-        for name, sign in METRICS:
+        for name, sign in METRICS + EXPLORATORY:
             vals = [m[name] for m in per_seed if m.get(name) is not None]
             if not vals:
                 row[name] = row[f'{name}_sd'] = ''
@@ -386,10 +434,29 @@ def main(results_dir, pairs_csv='af3_idr_pairs.csv', want_full=True):
             print(f'    {metric:28s} AUC {a:.3f}   p={p:.4f}  q={q:.4f}  n={n1}/{n2}{star}')
         print()
 
+    # ------------------------------------------------ exploratory: local PAE
+    print('=== exploratory: local PAE scores (added after stage 1, outside the panel) ===')
+    print('   ipSAE and LIS score only the confident interchain pairs; same comparator\n')
+    for name, (pp, nn) in SUBSETS.items():
+        print(f'  {name}')
+        for metric, sgn in EXPLORATORY:
+            pos, neg = vals(metric, pp, sgn), vals(metric, nn, sgn)
+            if len(pos) < 3 or len(neg) < 3:
+                continue
+            line = f'    {metric:28s} AUC {auc(pos, neg):.3f}   p={perm_p(pos, neg):.4f}'
+            bp = [base[r['job_name']] for r in rows if pp(r) and r['job_name'] in base]
+            bn = [base[r['job_name']] for r in rows if nn(r) and r['job_name'] in base]
+            if len(bp) == len(pos) and len(bn) == len(neg) and bp and bn:
+                d, dlo, dhi = delta_auc_vs_baseline(pos, neg, bp, bn)
+                line += (f'   delta {d:+.3f} CI [{dlo:+.3f}, {dhi:+.3f}]'
+                         + ('  PASS' if dlo > 0 else '  FAIL'))
+            print(line)
+        print()
+
     # ------------------------------------------------ confounds
     print('=== confound checks ===')
     L = [float(r['total_residues']) for r in rows]
-    for metric, _s in METRICS:
+    for metric, _s in METRICS + EXPLORATORY:
         v = [(float(r[metric]), float(r['total_residues']))
              for r in rows if r.get(metric) not in ('', None)]
         if len(v) < 5:

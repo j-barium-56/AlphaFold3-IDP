@@ -8,7 +8,9 @@ baseline_leakage.loo_logistic / pair_feats -- so the report cannot drift from th
 pipeline. The pre-registered five subsets use the identical definitions and default
 seeds as parse_af3_results.main, so those cells reproduce its printout exactly.
 
-Extends the pipeline in three ways, each flagged in the output:
+Extends the pipeline in four ways, each flagged in the output:
+  * an exploratory local-PAE block (ipSAE, LIS) on every grouping, stored apart from
+    the 16-metric cells and BH-corrected against the 16 + 2 family
   * every grouping of the set (pair type, negative type, evidence grade, positive
     subgroup, LLPS stratum), not just the five pre-registered subsets
   * arm-specific composition baselines for the homotypic / heterotypic split that
@@ -33,6 +35,8 @@ import baseline_leakage as B
 MEM = {'P06', 'P07', 'P20', 'P21'}                # memorised pipeline controls
 METRICS = list(P.METRICS)                         # [(name, sign)] x 16
 METRIC_NAMES = [m for m, _ in METRICS]
+LOCAL = list(P.EXPLORATORY)                       # ipSAE, LIS: added after stage 1
+LOCAL_NAMES = [m for m, _ in LOCAL]
 PRIMARY = P.PRIMARY
 
 # ----------------------------------------------------------------- load
@@ -50,7 +54,7 @@ def fv(r, m):
     v = r.get(m)
     return None if v in ('', None) else float(v)
 
-SIGN = dict(METRICS)
+SIGN = dict(METRICS + LOCAL)
 
 # ----------------------------------------------------------------- composition baseline
 def loo_scores(sub):
@@ -87,7 +91,7 @@ def single_feature_table(sub):
 # ----------------------------------------------------------------- length adjustment
 logL = {r['job_name']: math.log(float(r['total_residues'])) for r in rows}
 resid = {}
-for m in METRIC_NAMES:
+for m in METRIC_NAMES + LOCAL_NAMES:
     x = np.array([logL[r['job_name']] for r in real])
     y = np.array([fv(r, m) for r in real], float)
     A = np.vstack([x, np.ones_like(x)]).T
@@ -220,15 +224,18 @@ def compute(t):
         out['beats_baseline'] = bool(dlo > 0)
     return out
 
-tasks = []
+tasks, local_tasks = [], []
 for g in GROUPS:
     adjusted = g['family'] == 'Length-adjusted'
     for m in METRIC_NAMES:
         tasks.append(cell_task(g, m, adjusted))
+    for m in LOCAL_NAMES:
+        local_tasks.append(cell_task(g, m, adjusted))
 
 if __name__ == '__main__':
     with Pool() as pool:
         cells = pool.map(compute, tasks, chunksize=4)
+        local_cells = pool.map(compute, local_tasks, chunksize=4)
 
     # BH correction across the 16 metrics within each group, as the parser does
     bygroup = collections.defaultdict(list)
@@ -239,6 +246,19 @@ if __name__ == '__main__':
         if testable:
             q = P.benjamini_hochberg([c['p'] for c in testable])
             for c, qq in zip(testable, q):
+                c['q'] = qq
+
+    # Local PAE cells are corrected against the group's 16 panel p-values plus their own,
+    # so metrics added after the fact pay for the bigger family; panel q is left as is.
+    local_by_group = collections.defaultdict(list)
+    for c in local_cells:
+        local_by_group[c['group']].append(c)
+    for gname, lcs in local_by_group.items():
+        new = [c for c in lcs if c.get('p') is not None]
+        if new:
+            panel = [c['p'] for c in bygroup[gname] if c.get('p') is not None]
+            q = P.benjamini_hochberg(panel + [c['p'] for c in new])
+            for c, qq in zip(new, q[len(panel):]):
                 c['q'] = qq
 
     # ---------------------------------------------------- reference predictors per group
@@ -389,12 +409,46 @@ if __name__ == '__main__':
                                  'binding_mode', 'llps', 'in_pdb', 'neg_type',
                                  'evidence_strength', 'stage', 'total_residues',
                                  'chain_A', 'chain_B', 'len_A', 'len_B', 'n_seeds')}
-        rec.update({m: fv(r, m) for m in METRIC_NAMES})
+        rec.update({m: fv(r, m) for m in METRIC_NAMES + LOCAL_NAMES})
         rec['iptm_sd'] = fv(r, 'iptm_sd')
         rec['baseline_pooled'] = base_pooled.get(r['job_name'])
         rec['baseline_arm'] = (base_homo if r['pair_type'] == 'homotypic' else base_het).get(r['job_name'])
         rec.update(extras.get(r['job_id'], {}))
         table.append(rec)
+
+    # ---------------------------------------------------- local PAE block (exploratory)
+    # ipSAE and LIS were added after stage 1 was scored. Everything about them lives
+    # under 'local_pae' so no existing key, count or page changes meaning.
+    local_conf = []
+    for m in LOCAL_NAMES:
+        v = [(fv(r, m), float(r['total_residues'])) for r in rows if fv(r, m) is not None]
+        rho = P.spearman([a for a, _ in v], [b for _, b in v])
+        local_conf.append({'metric': m, 'rho_length': rho, 'flagged': abs(rho) > 0.5})
+
+    local_scr_pairs = [{'scramble': s['scramble'], 'parent': s['parent'],
+                        'memorised_parent': s['memorised_parent'],
+                        'parent_vals': {k: fv(jid[s['parent']], k) for k in LOCAL_NAMES},
+                        'scramble_vals': {k: fv(jid[s['scramble']], k) for k in LOCAL_NAMES}}
+                       for s in scr_pairs]
+    local_scr_summary = {}
+    for k in LOCAL_NAMES:
+        diffs = [s['parent_vals'][k] - s['scramble_vals'][k] for s in local_scr_pairs]
+        # parent and scramble often both score exactly 0, so ties are dropped (sign test)
+        untied = [x for x in diffs if x != 0]
+        wins, n = sum(1 for x in untied if x * SIGN[k] > 0), len(untied)
+        p = (min(1.0, 2 * sum(math.comb(n, i) for i in range(max(wins, n - wins), n + 1)) / 2 ** n)
+             if n else 1.0)
+        local_scr_summary[k] = {'wins': wins, 'n': n, 'ties': len(diffs) - n, 'sign_p': p,
+                                'median_delta': statistics.median(diffs)}
+
+    local_matched = []
+    for m in matched:
+        js = [m['positive']] + m['negatives']
+        mv = {j: {k: fv(jid[j], k) for k in LOCAL_NAMES} for j in js}
+        local_matched.append({
+            'positive': m['positive'], 'negatives': m['negatives'], 'why': m['why'], 'vals': mv,
+            'correct': {k: all(mv[m['positive']][k] * SIGN[k] > mv[neg][k] * SIGN[k]
+                               for neg in m['negatives']) for k in LOCAL_NAMES}})
 
     out = {
         'meta': {
@@ -426,13 +480,24 @@ if __name__ == '__main__':
         'distributions': dists,
         'msa_templates': msa_tmpl,
         'table': table,
+        'local_pae': {
+            'metrics': [{'name': m, 'sign': s} for m, s in LOCAL],
+            'cutoffs_angstrom': {'ipsae': P.IPSAE_CUTOFF, 'lis': P.LIS_CUTOFF},
+            'q_family': 'BH over the 16 panel metrics plus ipSAE and LIS, within each group',
+            'cells': local_cells,
+            'confounds': local_conf,
+            'scramble_pairs': local_scr_pairs,
+            'scramble_summary': local_scr_summary,
+            'matched_internal': local_matched,
+        },
     }
     with open(os.path.join(HERE, 'af3_report_data.json'), 'w') as f:
         json.dump(out, f, indent=1, default=float)
 
     # ------------------------------------------------ console check of key numbers
-    def show(gname, metric='iptm'):
-        c = [x for x in cells if x['group'] == gname and x['metric'] == metric]
+    def show(gname, metric='iptm', pool_=None):
+        c = [x for x in (cells if pool_ is None else pool_)
+             if x['group'] == gname and x['metric'] == metric]
         if not c:
             return
         c = c[0]
@@ -468,4 +533,16 @@ if __name__ == '__main__':
           scr_summary['iptm']['wins'], '/', scr_summary['iptm']['n'],
           f"sign p={scr_summary['iptm']['sign_p']:.3f}")
     print('has_clash anywhere:', sum(1 for v in extras.values() if v['has_clash_any']), '/', len(extras))
-    print(f"\nwrote af3_report_data.json  ({len(cells)} cells, {len(GROUPS)} groups)")
+    print('\nLOCAL PAE, exploratory (q = BH over the 16 panel metrics + these 2):')
+    for g in GROUPS:
+        if g['family'] in ('Pre-registered', 'By pair type'):
+            for m in LOCAL_NAMES:
+                show(g['name'], m, local_cells)
+    print('local PAE rho vs length:', {c['metric']: round(c['rho_length'], 3) for c in local_conf})
+    print('local PAE, parent beats scramble:',
+          {k: f"{v['wins']}/{v['n']} (+{v['ties']} ties) p={v['sign_p']:.3f}"
+           for k, v in local_scr_summary.items()})
+    print('local PAE matched-internal correct:',
+          {m['positive']: m['correct'] for m in local_matched})
+    print(f"\nwrote af3_report_data.json  ({len(cells)} + {len(local_cells)} local cells, "
+          f"{len(GROUPS)} groups)")
