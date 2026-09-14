@@ -1,8 +1,9 @@
 # Can AF3 co-folding detect IDR–IDR interactions?
 
 Dataset and staged plan. Written 14 September 2026, revised the same day after a
-leakage check changed the primary criterion. Everything marked *verified* was checked by
-running code or against a source. Where I have not checked something, I say so.
+leakage check changed the primary criterion, and again that evening with the stage-1
+result. Everything marked *verified* was checked by running code or against a source.
+Where I have not checked something, I say so.
 
 ---
 
@@ -44,6 +45,16 @@ Every sequence was pulled from UniProt and *verified* against UniProt's own repo
 length **and** average molecular mass — 26/26 exact. This matters: the network route
 available here relays text through a language model, and it silently garbled one sequence
 (FMR1) three separate times, in three different places. Mass-checking caught it.
+
+Two follow-ups closed that out, both from a machine with real network access. FMR1
+445–632, the one sequence resting on a three-fetch consensus rather than a mass check, was
+compared character-for-character against UniProt Q06787: **exact**, and it is what P04 and
+S04 actually ran. And the three homotypic negatives added late — p53 TAD, p21, 4E-BP1 —
+turned out never to have been recorded in `af3_idr_regions.csv` at all, so they had no
+accession or boundaries on file and were never in the 26/26 tally. They are now, checked
+the same way: p53 TAD is P04637 residues 1–61 exactly, p21 is P38936 full-length (average
+mass 18,119.3 Da, matching), 4E-BP1 is Q13541 full-length (12,580.0 Da, matching).
+**30/30 regions verified and all 30 documented.**
 
 ### Positives (21)
 
@@ -94,6 +105,12 @@ Test 3 in the script runs positives against the 8 `demonstrated` negatives only.
 less power, but its labels are defensible; if the headline result and the gold-standard
 result disagree, believe the gold-standard one.
 
+**Amended after stage 1: that rule cannot be applied as written.** Those 8 negatives are
+also the shortest and most helix-competent rows in the set, so the subset is length- and
+foldability-confounded — length alone separates it at AUC 0.985. The disagreement is real
+but it is not evidence about AF3. See Stage 1 below, and settle the length handling before
+test 3 is allowed to adjudicate anything.
+
 ### Two design decisions that came out of checking the set against itself
 
 **Scrambles cannot be the primary negative.** A shuffled sequence has no homologs, so AF3
@@ -124,12 +141,16 @@ chance.**
 
 ---
 
-## Stage 1 — run it (day 1, 52 real-sequence jobs; scrambles on day 2)
+## Stage 1 — how it was run
 
 `af3_batch_01..04.json` upload straight into AlphaFold Server (20 jobs each; homodimers
 are one chain with `count: 2`). All job names are sanitised to `[A-Za-z0-9_-]` — the
 server rejects anything else, which is what broke the first job of batch 1 in the first
 version (the dot in `H1.0`).
+
+As actually run: batches 1–3 went in one sitting — 60 jobs, which includes 8 of the 10
+scrambles rather than holding the whole scramble arm for day 2 — and batch 4 (S20, S21)
+is still outstanding.
 
 `parse_af3_results.py` reads the result zips and writes the scored table plus every test
 below.
@@ -188,19 +209,92 @@ corrected, hypothesis-generating, worth confirming on a fresh set.
   does not have.
 - **Both low** — debug before concluding.
 
-## Stage 2 — day 2
+## Stage 1 — the result (*verified*, 14 September 2026)
 
-Scramble arm (10 jobs) plus explicit-seed replicates of the four memorised controls.
-That leaves ~45 jobs for whichever branch Stage 1 opens: if fuzzy discrimination exists,
-test what drives it with charge-pattern-preserving vs full scrambles; if it does not,
-find where the boundary sits by truncating the GCN4 zipper toward marginality and
-locating the length at which ipTM collapses.
+60 of 62 jobs ran (batches 1–3; S20 and S21 still pending), five samples each. Every
+number below is in `af3_idr_results_report.pdf`; every cell is in `af3_all_statistics.csv`.
+
+| Test | AF3 ipTM AUC | composition | ΔAUC (95% CI) | |
+|---|---|---|---|---|
+| 1. positives vs 31 real negatives | 0.611 | 0.767 | −0.156 [−0.32, +0.01] | fail |
+| 2a. mutual folding vs hard zipper | 0.417 | 0.250 | +0.167 [−0.50, +0.88] | fail |
+| 2b. fuzzy positives — **the result** | 0.676 | 0.784 | −0.107 [−0.26, +0.05] | fail |
+| 3. vs gold-standard negatives | 0.118 | 0.640 | −0.522 [−0.74, −0.29] | fail |
+| Homotypic arm, arm baseline | 0.564 | 0.902 | −0.337 [−0.58, −0.12] | fail |
+| Heterotypic arm, arm baseline | 0.485 | 0.500 | −0.015 [−0.32, +0.29] | fail |
+
+**Which branch.** ΔAUC_fuzzy ≈ 0 *and* AUC_fold low, which by the table above means
+"debug before concluding". The debugging is done, and the pipeline is not what is broken:
+GCN4-p1 reaches ipTM 0.73, all four memorised controls sit at 0.70–0.80 (the top of the
+whole set), and all 60 jobs ran the sequence they were supposed to, five samples each.
+What fails test 2a is the model: the three `hard_coiledcoil` negatives score 0.70, 0.78
+and 0.80 — **ipTM AUC 0.000** against the positives, meaning every one of them outranks
+every positive. AF3 dimerises any zipper-competent pair, cognate or not.
+
+**Test 3 cannot adjudicate, so criterion 0 cannot be applied as written.** The 8
+`demonstrated` negatives are 94–236 residues; the 17 positives are 205–882. Total chain
+length alone separates that exact split at AUC 0.985, and the metrics carrying the
+inversion are the four the parser flags as length-confounded. Residualising on log length
+moves ipTM from 0.118 to 0.449. Decide the length handling — matched subset or partialled —
+and write it down *before* reading test 3 again.
+
+**The secondary panel does not rescue it.** Interchain contact-probability sum is the one
+metric that separates on its own (AUC 0.787, q = 0.008; 0.970 in the homotypic arm), and
+it still does not beat composition: Δ = +0.020 [−0.10, +0.14]. Of the 464 cells with a
+baseline, 15 have a Δ interval clear of zero and 14 of those are the memorised controls.
+The fifteenth — fuzzy homotypic positives on contact-probability sum, Δ +0.091 [+0.011,
++0.204] — is uncorrected across 464 comparisons, and the pre-registered homotypic arm
+does not pass. That is a hypothesis for a fresh set, not a result.
+
+**What did work: the matched-internal contrasts.** They rest on no literature absence at
+all, and AF3 gets all three right — ACTR×NCBD above both ACTR×ACTR and NCBD×NCBD, and
+c-Fos×c-Jun above c-Fos×c-Fos; 3/3 on ipTM, 12 of 16 metrics for P06 and 15 of 16 for
+P07. This is the design to expand. With the caveat immediately below.
+
+**Templates were on, and nobody chose that.** The batch files are dialect version 1 and
+never set `useStructureTemplate`; the server upgraded them to version 3 and set it `true`
+on all 95 chain entries, returning 2–4 template hits per chain for all 60 jobs. 6es7 —
+which contains both ACTR and NCBD, since it templates both chains of P06 — is also a
+template for N26 and N27, and 1fos is a template in N15, N16, N17 and N28. AF3 applies
+templates within a chain, so this is each partner's bound conformation rather than the
+interface itself, but it is exactly the help a zipper needs and it lands on both the
+memorised positives and the matched-internal negatives. Until the templates-off rerun,
+every memorisation statement in this document is provisional.
+
+## Stage 2 — what to run next
+
+Revised after stage 1. Twenty jobs, one day on one account, in this order:
+
+1. **Batch 4** (S20, S21) — finishes the scramble arm at 10 pairs. 2 jobs.
+2. **Templates off.** Re-run P06, P07, P20, P21, N15, N16, N17, N26, N27, N28 with
+   `"useStructureTemplate": false` on every chain. 10 jobs. This is the cheapest
+   experiment that can change an interpretation: if the controls collapse, the
+   memorisation signal is template-driven rather than weights-driven, and test 2a fails
+   because of templates rather than because of AF3's priors.
+3. **Seed replicates.** `"modelSeeds": ["2","3"]` on the four memorised controls. Seed 1
+   already ran on 59 of the 60 jobs, so only 2 and 3 add information. 8 jobs, and the
+   first real measurement of run-to-run variance — the five samples per job share a seed.
+4. **Confirm or drop** the two `uncertain` negatives (H1.0 alone, ERD10 alone) before they
+   carry any weight in a second pass.
+
+Then the branch. Fuzzy discrimination does not exist at this sample size, so the
+informative direction is where the boundary sits: truncate the GCN4 zipper toward
+marginality and locate the length at which ipTM collapses, and expand the
+matched-internal design, which is the only contrast in the set that behaved.
 
 ## Stage 3 — write-up
 
 Short paper whose contribution is the labelled IDR–IDR set plus one plane
 (interaction class × seed variance, or × ΔAUC). Natural readers: the Mehdiabadi group,
 Fuxreiter (fuzzy labels), Forman-Kay (FMRP/CAPRIN1 and condensate IDR–IDR generally).
+
+Stage 1 reframes it slightly. The seed-variance plane is not available yet, so the paper
+that exists today is the labelled set plus **a quantified negative against a trivial
+baseline**: co-folding confidence adds nothing over sequence composition for fuzzy
+IDR–IDR pairs, it cannot separate cognate from non-cognate zippers at all, and the
+gold-standard subset that was supposed to arbitrate is confounded by length. The
+methodological point — that an IDR benchmark has to beat composition, not chance — is
+probably as useful to the field as the AF3 result itself.
 
 ---
 
@@ -213,30 +307,47 @@ Listed so none of it arrives as a surprise from a referee.
    column is descriptive metadata for stratifying, **never an outcome variable**.
 2. **The server gives 5 samples, not 5 independent seeds**, unless `modelSeeds` is set
    explicitly. "Inter-seed spread" is really inter-sample spread — fine as a variance
-   readout, but do not call it seed replication in the write-up.
+   readout, but do not call it seed replication in the write-up. As run: 59 of the 60 jobs
+   recorded seed `"1"` and N24 recorded a server-assigned seed, so the measured spread
+   (0.0141 mean within-job ipTM sd for fuzzy positives, 0.0146 for mutual folding) is
+   sample spread across one seed. Run-to-run variance is still unmeasured.
 3. **No monomer baseline.** Running each region alone would give a pLDDT/disorder
    reference to subtract. Costs ~30 jobs; worth it if the pLDDT metrics turn out to matter.
 4. **No PTMs.** FMRP/CAPRIN1 is explicitly phospho-dependent, and so is tau LLPS. The
    unmodified sequences may be the wrong functional state for at least two positives.
 5. **No RNA.** G3BP1, CAPRIN1 and FMRP condensates are RNA-dependent. AF3 accepts RNA
    chains, so this is a scope choice, not a limitation of the tool.
-6. **Length is not matched by design**, only checked post hoc.
+6. **Length is not matched by design**, only checked post hoc — and stage 1 shows it
+   decides answers: length alone scores AUC 0.985 on the gold-standard split, 1.000
+   against the hard zippers and 0.676 on the headline test. A second set should be
+   length-matched at selection time rather than corrected afterwards.
 7. **Cross-kingdom negatives have no paired MSA**, so they share the scramble arm's
    confound in milder form. The non-cognate human–human pairs are the cleanest negatives;
    report negative subtypes separately if they behave differently.
 8. **"No reported interaction" is not "does not interact."** IDRs are promiscuous, and
-   20 of the 31 negatives rest on `inferred` or `absence_only` evidence. This is the
+   21 of the 31 negatives rest on `inferred` or `absence_only` evidence. This is the
    single biggest threat to the benchmark's validity. The `evidence_strength` column
    exists so a reader can discount accordingly, and the fix if the result hinges on it is
    to expand the `matched_internal` design — more chains that appear in both a positive
    and a negative — rather than to find more proteins nobody has reported binding.
-9. **No replicate jobs** to measure the server's own run-to-run variance.
+9. **No replicate jobs** to measure the server's own run-to-run variance — scheduled as
+   stage 2 step 3, and until it runs no variance claim in the write-up is supportable.
 10. **Species are mixed**: NCBD is mouse, GCN4 and Nsp1 are yeast, ERD10 is plant.
-11. **FMRP sequence caveat**: FMR1 445–632 is the one sequence not confirmed by mass —
-    the fetch route corrupted the protein's N-terminal half. The C-terminal region agreed
-    across three independent fetches, but re-copy it from UniProt Q06787 to be clean.
+11. **FMRP sequence caveat — resolved.** FMR1 445–632 was the one sequence not confirmed
+    by mass, because the fetch route corrupted the protein's N-terminal half. It has since
+    been compared character-for-character against UniProt Q06787 and is exact; P04 and S04
+    ran the correct sequence.
 12. **hnRNPA2 boundary** (P22626, 194–353) is marked `approximate`: the literature
     construct is numbered on the A2 isoform, not B1.
+13. **Structure templates were on for all 95 chain entries** — the AlphaFold Server
+    default, never a choice made here. Treated in stage 1 as a confound; the rerun in
+    stage 2 is what tests it.
+14. **The ΔAUC intervals are not corrected for multiplicity.** The 16-metric panel carries
+    Benjamini–Hochberg correction within each group, but the 464 Δ-vs-baseline intervals
+    do not. Exactly one non-control cell clears zero, which is about what 464 uncorrected
+    95% intervals would produce by chance.
+15. **No length-matched negative arm**, which is the single change most likely to make
+    test 3 interpretable on a second pass.
 
 ---
 
@@ -244,9 +355,15 @@ Listed so none of it arrives as a surprise from a referee.
 
 | File | What it is |
 |---|---|
-| `af3_idr_pairs.csv` | 62 jobs, one row each: both sequences, all labels, `evidence_strength`, stage |
-| `af3_idr_regions.csv` | 30 IDR regions: accession, boundaries, sequence, boundary confidence |
-| `af3_batch_01..04.json` | Upload-ready AlphaFold Server batch files |
+| `af3_idr_pairs_1.csv` | 62 jobs, one row each: both sequences, all labels, `evidence_strength`, stage. The `_1` is a download artefact; `parse_af3_results.py` defaults to `af3_idr_pairs.csv`, so pass the path explicitly or rename it. The copy in `~/Downloads` is an **older** version with no `evidence_strength` column — do not use it |
+| `af3_idr_regions.csv` | 30 IDR regions: accession, boundaries, sequence, boundary confidence. p53 TAD, p21 and 4E-BP1 were back-filled after stage 1 — they were in the pair table but had never been recorded here. The histone id is `H1.0_full`; the pair table sanitises it to `H10_full` |
+| `af3_batch_01..04.json` | Upload-ready AlphaFold Server batch files. Dialect version 1, `modelSeeds: []`, no template switch — none of which is what actually ran; the `job_request.json` inside each result folder is the record |
 | `baseline_leakage.py` | Composition-only baseline — **run before AlphaFold** |
 | `parse_af3_results.py` | Result zips → scored table, ΔAUC tests, corrected metric panel |
+| `af3_report_stats.py` | Extends the parser to every grouping × metric → `af3_report_data.json` |
+| `af3_report_build.py` | `af3_report_data.json` → `af3_idr_results_report.pdf` |
+| `af3_idr_results_report.pdf` | Stage-1 results, 26 pages: verdicts, every grouping, confounds, both appendices |
+| `af3_all_statistics.csv` | All 496 cells: AUC, CI, permutation p, BH q, ΔAUC and its CI |
+| `af3_scored.csv` | Per-job scored table written by `parse_af3_results.py` |
 | `af3_idr_plan.md` | This document |
+| `af3_idr_handoff.md` | The operational companion — what to run next, and why not to undo things |
