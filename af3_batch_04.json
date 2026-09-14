@@ -1,0 +1,42 @@
+[
+ {
+  "name": "S20_MAX_bHLHZ__MAX_bHLHZ_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "ADKRAHHNALERKRRDHIKDSFHSLRDSVPSLQGEKASRAQILDKATEYIQYMRRKNHTHQQDIDDLKRQNALLEQQVRAL",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "AAYRQAARHGRKANINDQLQLLSRLISERDISRNKLRDRKHDDQKQHQDARLVASHQETHIQYMAFDESPRDLLTKKEKHV",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S21_GCN4_LZ__GCN4_LZ_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "RMKQLEDKVEELLSKNYHLENEVARLKKLVGER",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "GQLELELHVKEKEEYNNVKLRKELSKMDRLARV",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ }
+]

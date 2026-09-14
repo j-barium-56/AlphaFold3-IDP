@@ -1,0 +1,336 @@
+[
+ {
+  "name": "N20_CAPRIN1_CT__ERD10_full",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "SRGVSRGGSRGARGLMNGYRGPANGFRGGYDGYRPSFSNTPNSGYTQSQFSAPRDYSGYQRDGYQQNFKRGSGQSGPRGAPRGRGGPPRPNRGMPQMNTQQVN",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "MAEEYKNTVPEQETPKVATEESSAPEIKERGMFDFLKKKEEVKPQETTTLASEFEHKTQISEPESFVAKHEEEEHKPTLLEQLHQKHEEEEENKPSLLDKLHRSNSSSSSSSDEEGEDGEKKKKEKKKKIVEGDHVKTVEEENQGVMDRIKEKFPLGEKPGGDDVPVVTTMPAPHSVEDHKPEEEEKKGFMDKIKEKLPGHSKKPEDSQVVNTTPLVETATPIADIPEEKKGFMDKIKEKLPGYHAKTTGEEEKKEKVSD",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N21_PTMA_full__PTMA_full",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MSDAAVDTSSEITTKDLKEKKEVVEEAENGRDAPANGNAENEENGEQEADNEVDEEEEEGGEEEEEEEEGDGEEEDGDEDEEAESATGKRAAEDDEDDDVDTKKQKTDEDD",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N22_H10_full__H10_full",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MTENSTSAPAAKPKRAKASKKSTDHPKYSDMIVAAIQAEKNRAGSSRQSIQKYIKSHYKVGENADSQIKLSIKRLVTTGVLKQTKGVGASGSFRLAKSDEPKKSVAFKKTKKEIKKVATPKKASKPKKAASKAPTKKPKATPVKKAKKKLAATPKKAKKPKTVKAKPVKASKPKKAKPVKPKAKSSAKRAGKKK",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N23_NPM1_acidic__NPM1_acidic",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "EEDAESEDEEEEDVKLLSISGKRSAPGGGSKVPQKKVKLAADEDDDDDDEEDDDEDDDDDDFDDEEAEEKAPVKKSIRDTPAKNAQKSNQNGKDSKPSSTPRSKGQESFKKQEKTPKTPKG",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N24_ERD10_full__ERD10_full",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MAEEYKNTVPEQETPKVATEESSAPEIKERGMFDFLKKKEEVKPQETTTLASEFEHKTQISEPESFVAKHEEEEHKPTLLEQLHQKHEEEEENKPSLLDKLHRSNSSSSSSSDEEGEDGEKKKKEKKKKIVEGDHVKTVEEENQGVMDRIKEKFPLGEKPGGDDVPVVTTMPAPHSVEDHKPEEEEKKGFMDKIKEKLPGHSKKPEDSQVVNTTPLVETATPIADIPEEKKGFMDKIKEKLPGYHAKTTGEEEKKEKVSD",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N25_G3BP1_IDR1__G3BP1_IDR1",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "VTEPQEESEEEVEEPEERQQTPEVVPDDSGTFYDQAVVSNDMEEHLEEPVAEPEPDPEPEPEQEPVSEIQEEKPEPVLE",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N26_NCOA3_ACTR__NCOA3_ACTR",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "EGQSDERALLDQLHTLLSNTDATGLEEIDRALGIPELVNQGQALEPK",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N27_CBP_NCBD__CBP_NCBD",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "PNRSISPSALQDLLRTLKSPSSPQQQQQVLNILKSNPQLMAAFIKQRTAKYVANQPGMQ",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N28_FOS_bZIP__FOS_bZIP",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "KRRIRRERNKMAAAKCRNRRRELTDTLQAETDQLEDEKSALQTEIANLLKEKEKLEFILAAH",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N29_P53_TAD__P53_TAD",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPD",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N30_P21_full__P21_full",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MSEPAGDVRQNPCGSKACRRLFGPVDSEQLSRDCDALMAGCIQEARERWNFDFVTETPLEGDFAWERVRGLGLPKLYLPTGPRRGRDELGGGRRPGTSPALLQGTAEEDHVDLSLSCTLVPRSGEQAEGSPGGPGDSQGRKRRQTSMTDFYHSKRRLIFSKRKP",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "N31_EIF4EBP1__EIF4EBP1",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MSGGSSCSQTPSRAIPATRRVVLGDGVQLPPGDYSTTPGGTLFSTTPGGTRIIYDRKFLMECRNSPVTKTPPRDLPTIPGVTSPSSDEPPMEASQSHLRNSPEDKRAGGEESQFEMDI",
+     "count": 2
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S01_PTMA_full__H10_full_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MSDAAVDTSSEITTKDLKEKKEVVEEAENGRDAPANGNAENEENGEQEADNEVDEEEEEGGEEEEEEEEGDGEEEDGDEDEEAESATGKRAAEDDEDDDVDTKKQKTDEDD",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "AHKAKAPLSATSSKDAISDKKVSGAEKTKKPPIAKKTKMKKAPTEKAKFTGETVYSAAKKPITPVVSQAAKVSAFVKKKPKPTSSKKLRGAVTAKQKKEGLKNKKTLISAKKSPSKLKGAASKKGARSVINKDEPIASVKSPKKKKPKGAKKKKVQKKNQAKDTAIKQKAHYYVRRAKPASKKRTSMKASPPRA",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S03_G3BP1_IDR1__G3BP1_RGG_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "VTEPQEESEEEVEEPEERQQTPEVVPDDSGTFYDQAVVSNDMEEHLEEPVAEPEPDPEPEPEQEPVSEIQEEKPEPVLE",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "RMVVAQGYLPFRELMGKLNKNGLGPGKDERVRRQRRQGEVSEGSKAEFVGGGLGLGRVPNHLQDGVIGGPVDPRQGNDKRFILVSKNGFPSESLILEGRERPFFGRATRGPGKDVPVPGFNRFDMN",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S04_FMR1_CT__CAPRIN1_CT_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "GASSRPPPNRTDKEKSYVTDDGQGMGRGSRPYRNRGHGRRGPGYTSGTNSEASNASETESDHRDELSDWSLAPTEEERESFLRRGDGRRRGGGGRGQGGRGRGGGFKGNDDHSRTDNRPRNPREAKGRTTDGSLQIRVDCNNERSVHTKTLQNTSSEGSRLRTGKDRNQKKEKPDSVDGQQPLVNGVP",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "GNGTSTAQRNGALGPGPGGNDSGGRRYRFFMRKGDSGTYRQQYAPSNRRGRSMAVSQGGYFRYGSSNQSRPQMRNGGGPPQPPNVQRRRQSSPGGYFYNPGGD",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S06_NCOA3_ACTR__CBP_NCBD_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "EGQSDERALLDQLHTLLSNTDATGLEEIDRALGIPELVNQGQALEPK",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "AQLQPPGLNNQRQKSTSPSIKSLMRYAQVLMNDAKLAILARKVSSQQLPNPSTQFQIPQ",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S07_FOS_bZIP__JUN_bZIP_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "KRRIRRERNKMAAAKCRNRRRELTDTLQAETDQLEDEKSALQTEIANLLKEKEKLEFILAAH",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "IRNASRIEERANLREARRQNLEKKNQLERMLRIKVMQAQVKKRAASKAMHCLNRVKKASTKVSKLET",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S08_FUS_LC__FUS_LC_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MASNDYTQQATQSYGAYPTQPGQGYSQQSSQPYGQQSYSGYSQSTDTSGYGQSSYSSYGQSQNTGYGTQSTPQGYGSTGGYGSSQSSQSSYGQQSSYPGYGQQPAPSSTSGSYGSSSQSSSYGQPQSGSYSQQPSYGGQQQSYGQQQSYNPPQGYGQQNQYNS",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "SQGASSYPYGNGTQNGQYGTSYNPQYSQGSSSQQTNGSSTQYQYGQQGGGYYQPQGSTGPSTSGSSSYSQSSQSPGSGYYAQMQSDSYPQSYSSYGQSGSSQQQGYSTQPSSQYQYSSGQQSSGQTPSGGYSYSTTQQYQYGAQQQGDNSGPSYQQSQPPYGA",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S11_TDP43_CTD__TDP43_CTD_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "NRQLERSGRFGGNPGGFGNQGGFGNSRGGGAGLGNNQGSNMGGGMNFGAFSINPAMMAAAQAALQSSWGMMGMLASQQNQSGPSGNNQNQGNMQREPNQAFGSGNNSYSGSNSGAAIGWGSASNAGSGSGFNGGFGSSMDSKSSGWGM",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "SMAGRNNNGIGSSMEESFGSGSGGGGNQFPGGFMGMAGAANNGNDAQNLGSNAWRAGSGIRSWSYSFMANSGNGFFGWMASNAGQSSQASGPLGNGNGASNFRSSGNRGGGQSQMQMGNSFNMGGGPLAQMSGAQSQLGQQNGNPGKG",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ },
+ {
+  "name": "S12_DDX4_NIDR__DDX4_NIDR_scr",
+  "modelSeeds": [],
+  "sequences": [
+   {
+    "proteinChain": {
+     "sequence": "MGDEDWEAEINPHMSSYVPIFEKDRYSGENGDNFNRTPASSSEMDDGPSRRDHFMKSGFASGRNFGNRDAGECNKRDNTSTMGGFGVGKSFGNRGFSNSRFEDGDSSGFWRESSNDCEDNPTRNRGFSKRGGYRDGNNSEASGPYRRGGRGSFRGCRGGFGLGSPNNDLDPDECMQRTGGLFGSRRPVLSGTGNGDTSQSRSGSGSERGGYKGLNEEVITGSGKNSWKSEAEGGES",
+     "count": 1
+    }
+   },
+   {
+    "proteinChain": {
+     "sequence": "NPDNMGSSGESSGRGNPCGDDGAASPFFGGERGGGSDNSNGKSNKEGGNDFRNSGIGERESNTKTRNRSFGRTFDDKGGKNVSESRGLGRESGDYYWCWGKSPRGNHWGSEGSDLLYVFSRRTGRNGSPMEMNDPASRDESGESAYDCQDEESSCGRKGMRDLRTGSQFTERYVRTKSENGDGGSRFIFSGTRARSPVASDSGNGGHPNLSSGFDEGFRDRFFENGNFPGIGMNME",
+     "count": 1
+    }
+   }
+  ],
+  "dialect": "alphafoldserver",
+  "version": 1
+ }
+]
