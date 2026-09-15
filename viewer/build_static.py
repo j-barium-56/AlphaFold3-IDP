@@ -22,6 +22,8 @@ sys.path.insert(0, REPO)
 from serve import load                             # noqa: E402  (path set up above)
 import af3_workbook_build as W                      # noqa: E402
 
+REPORT_PDF = 'af3_idr_results_report.pdf'
+
 MATRIX_FIELDS = ('pae', 'contact_probs', 'token_chain_ids', 'token_res_ids')
 ROUND = {'pae': 2, 'contact_probs': 3}
 
@@ -59,6 +61,9 @@ def build(results_dir, out_dir):
     with open(os.path.join(out_dir, 'api', 'jobs.json'), 'w') as f:
         json.dump(jobs, f, separators=(',', ':'))
     shutil.copyfile(os.path.join(HERE, 'index.html'), os.path.join(out_dir, 'index.html'))
+    report = os.path.join(REPO, REPORT_PDF)
+    if os.path.exists(report):
+        shutil.copyfile(report, os.path.join(out_dir, REPORT_PDF))
     print(f'{sum(bool(j["samples"]) for j in jobs)} of {len(jobs)} jobs have results; '
           f'wrote {n} matrix files to {out_dir}')
 

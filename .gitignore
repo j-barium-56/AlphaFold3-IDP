@@ -1,2 +1,3 @@
 # AlphaFold Server result folders (large; regenerate from downloads, never commit)
 data/
+__pycache__/

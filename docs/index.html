@@ -41,6 +41,8 @@ input, select {
 }
 #q { width: 240px; max-width: 100%; }
 #count { color: var(--muted); }
+#reportLink { color: var(--accent); text-decoration: none; }
+#reportLink:hover, #reportLink:focus-visible { text-decoration: underline; }
 main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 430px) minmax(0, 1fr); }
 #list { overflow: auto; background: var(--surface); border-right: 1px solid var(--border); }
 #detail { overflow: auto; min-width: 0; padding: 16px 16px 32px; }
@@ -97,6 +99,25 @@ canvas { display: block; }
   main { grid-template-columns: 1fr; }
   #list { max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--border); }
 }
+#descriptions {
+  width: min(760px, 92vw); max-height: 85vh; padding: 0; border: 1px solid var(--border);
+  border-radius: 10px; background: var(--surface); color: var(--ink);
+}
+#descriptions::backdrop { background: rgba(11, 11, 11, 0.35); }
+#descriptions > div { display: flex; flex-direction: column; max-height: 85vh; }
+#descriptions header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--surface);
+  justify-content: space-between;
+}
+#descriptions h2 { font-size: 15px; }
+#descList { overflow: auto; padding: 4px 16px 16px; }
+#descList dl { margin: 0; }
+#descList .pair-desc { padding: 10px 0; border-bottom: 1px solid var(--grid); }
+#descList .pair-desc:last-child { border-bottom: 0; }
+#descList dt { font-weight: 600; }
+#descList dt small { font-weight: 400; color: var(--ink-2); margin-left: 6px; }
+#descList dd { margin: 3px 0 0; color: var(--muted); }
+#descList dd.pair-facts { color: var(--ink-2); margin-bottom: 2px; }
 </style>
 </head>
 <body>
@@ -110,7 +131,18 @@ canvas { display: block; }
     <option value="negative_scramble">negative_scramble</option>
   </select>
   <span id="count"></span>
+  <button type="button" id="openDescriptions">Pair descriptions</button>
+  <a id="reportLink" href="af3_idr_results_report.pdf" target="_blank" rel="noopener">Full report (PDF)</a>
 </header>
+<dialog id="descriptions">
+  <div>
+    <header>
+      <h2>What each pair is</h2>
+      <button type="button" id="closeDescriptions" aria-label="Close">Close</button>
+    </header>
+    <div id="descList"></div>
+  </div>
+</dialog>
 <main>
   <div id="list">
     <table id="jobs">
@@ -224,6 +256,22 @@ function renderTable() {
   $('jobs').tBodies[0].replaceChildren(...rows);
   $('count').textContent = `${shown.length} of ${state.jobs.length} jobs · `
     + `${state.jobs.filter(j => j.samples.length).length} with results`;
+}
+
+function renderDescriptions() {
+  const dl = el('dl');
+  for (const j of state.jobs) {
+    const item = el('div', null, 'pair-desc');
+    const dt = el('dt', `${j.job_id} · ${j.chain_A} × ${j.chain_B}`);
+    dt.append(el('small', j.label === 'negative_scramble' ? 'scramble' : j.label));
+    const facts = el('dd', [j.pair_type, j.binding_mode !== 'none' ? j.binding_mode : '', j.neg_type,
+      j.in_pdb ? `PDB ${j.in_pdb}` : '', `evidence ${j.evidence_strength}`].filter(Boolean).join(' · '),
+      'pair-facts');
+    const evidence = el('dd', j.evidence || '—');
+    item.append(dt, facts, evidence);
+    dl.append(item);
+  }
+  $('descList').replaceChildren(dl);
 }
 
 function select(id, model, kind) {
@@ -515,6 +563,8 @@ $('kinds').addEventListener('click', e => {
 });
 $('q').addEventListener('input', renderTable);
 $('label').addEventListener('change', renderTable);
+$('openDescriptions').addEventListener('click', () => $('descriptions').showModal());
+$('closeDescriptions').addEventListener('click', () => $('descriptions').close());
 new ResizeObserver(() => render()).observe($('plot'));
 // repaint anything the browser dropped while the page was hidden or the GPU was reset
 document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
@@ -528,6 +578,7 @@ for (const c of [heat, cells]) c.addEventListener('contextrestored', render);
     return;
   }
   renderTable();
+  renderDescriptions();
   const [id, model, kind] = decodeURIComponent(location.hash.slice(1)).split('/');
   const job = state.jobs.find(j => j.job_id === id) || state.jobs.find(j => j.samples.length) || state.jobs[0];
   if (job) select(job.job_id, model ? Number(model) : undefined, kind);

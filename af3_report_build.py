@@ -113,7 +113,7 @@ class Doc:
     def __init__(self):
         self.c = canvas.Canvas(OUT, pagesize=A4)
         self.c.setTitle('AlphaFold 3 IDR-IDR co-folding benchmark - stage 1 results')
-        self.c.setAuthor('Barry'); self.c.setSubject('Discrimination of IDR-IDR pairs')
+        self.c.setSubject('Discrimination of IDR-IDR pairs')
         self.page = 0; self.section = ''; self.y = MT; self.warns = []
 
     # geometry ---------------------------------------------------
@@ -254,9 +254,10 @@ class Doc:
                 self.text(x + 9, top + 44 + i * 8, ln, 'S', 6.6, INK2)
 
     # tables -----------------------------------------------------
-    def table(self, cols, rows, size=7.3, rowh=11.4, font='S', zebra=False, head=True):
+    def table(self, cols, rows, size=7.3, rowh=11.4, font='S', zebra=False, head=True, paginate=None):
         tw = sum(c['w'] for c in cols)
-        if head:
+
+        def draw_head():
             self.box(ML, self.y, tw, rowh + 1, fill=HexColor('#f2f1ee'))
             x = ML
             for c in cols:
@@ -267,7 +268,16 @@ class Doc:
                 x += c['w']
             self.y += rowh + 1
             self.rule(self.y, ML, ML + tw, color=AXIS, w=0.6)
+
+        if head:
+            draw_head()
         for i, r in enumerate(rows):
+            if paginate and self.y + rowh + 1 > H - MB:      # row (plus a sub-header's extra 2.5pt) won't fit
+                self.newpage(paginate['section'])
+                if paginate.get('title'):
+                    self.text(ML, self.y, paginate['title'], 'SB', 10, INK); self.y += 16
+                if head:
+                    draw_head()
             if r.get('_sub') is not None:
                 self.y += 2.5
                 self.text(ML + 1, self.y + rowh - 3.4, r['_sub'], 'SB', size - 0.1, ACCENT)
@@ -1448,7 +1458,9 @@ def p_appendix_local(d):
              {'title': 'ipSAE', 'key': 'ipsae', 'w': 44, 'align': 'r', 'font': 'NB',
               'fmt': lambda v, r: f'{v:.3f}'},
              {'title': 'LIS', 'key': 'lis', 'w': 44, 'align': 'r', 'font': 'NB',
-              'fmt': lambda v, r: f'{v:.3f}'}], rows, size=6.8, rowh=10.4, font='N', zebra=True)
+              'fmt': lambda v, r: f'{v:.3f}'}], rows, size=6.8, rowh=10.4, font='N', zebra=True,
+            paginate={'section': 'appendix C / local PAE',
+                      'title': 'Appendix C continued - local PAE, every job'})
     d.y += 6
     d.para('PAE min = chain-pair minimum interchain PAE (A). PAE < 10 A = fraction of interchain pairs '
            'under 10 A. ipSAE and LIS as defined on the methods page; 0 means no interchain pair '
