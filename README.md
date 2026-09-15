@@ -86,9 +86,11 @@ python3 baseline_leakage.py af3_idr_pairs_1.csv        # run BEFORE looking at A
 python3 parse_af3_results.py data af3_idr_pairs_1.csv  # -> af3_scored.csv + the tests
 python3 af3_report_stats.py                            # -> af3_report_data.json (~1 min)
 python3 af3_report_build.py                            # -> the 26-page PDF + full CSV
+python3 af3_workbook_build.py                          # -> af3_idr_workbook.xlsx, every raw + calculated value
+python3 viewer/serve.py                                # -> http://127.0.0.1:8765, PAE / contact maps per sample
 ```
 
-Needs `numpy` (parser, baseline) and `reportlab` (report). The report registers Arial from
+Needs `numpy` (parser, baseline), `reportlab` (report) and `openpyxl` (workbook). The report registers Arial from
 `/System/Library/Fonts/Supplemental`, so as written it builds on macOS; both report scripts
 currently hard-code the repository path. `parse_af3_results.py` accepts either the result
 zips or unzipped job folders, and matches them to rows by job name — check the list of
@@ -108,6 +110,9 @@ unmatched jobs it prints before trusting any AUC.
 | `af3_idr_results_report.pdf` | Stage-1 results |
 | `af3_all_statistics.csv` | All 496 cells: AUC, CI, permutation p, BH q, ΔAUC and its CI |
 | `af3_scored.csv` | Per-job scored table |
+| `af3_workbook_build.py` | Raw server output + every calculated table → one workbook; refuses to write unless it reproduces `af3_scored.csv` |
+| `af3_idr_workbook.xlsx` | That workbook. `Jobs` is the pair table with raw and calculated columns appended, `Models` one row per server sample |
+| `viewer/` | `serve.py` + `index.html`: local job browser with per-sample PAE and contact-probability heatmaps, read from `data/` |
 | `af3_idr_plan.md` | Scientific design, pre-registered criteria, the stage-1 result, limitations |
 | `af3_idr_handoff.md` | Operational doc: what to run next, and what not to undo |
 
