@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AF3 IDR–IDR viewer</title>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.10);
+  --accent: #2a78d6;
+  --wash: rgba(42, 120, 214, 0.10);
+  /* label identity: categorical slots 1-3 */
+  --positive: #2a78d6;
+  --negative: #eb6834;
+  --negative_scramble: #1baf7a;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0; display: flex; flex-direction: column;
+  background: var(--page); color: var(--ink);
+  font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border);
+}
+h1 { margin: 0 8px 0 0; font-size: 15px; font-weight: 600; }
+input, select {
+  font: inherit; color: var(--ink); background: #fff;
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px;
+}
+#q { width: 240px; max-width: 100%; }
+#count { color: var(--muted); }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 430px) minmax(0, 1fr); }
+#list { overflow: auto; background: var(--surface); border-right: 1px solid var(--border); }
+#detail { overflow: auto; min-width: 0; padding: 16px 16px 32px; }
+table { border-collapse: collapse; }
+#jobs { width: 100%; }
+#jobs th {
+  position: sticky; top: 0; z-index: 1; background: var(--surface);
+  padding: 6px 8px; text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-2);
+  border-bottom: 1px solid var(--grid);
+}
+#jobs td { padding: 5px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+#jobs td.pair { max-width: 170px; overflow: hidden; text-overflow: ellipsis; }
+#jobs tbody tr { cursor: pointer; }
+#jobs tbody tr:hover { background: rgba(11, 11, 11, 0.03); }
+#jobs tbody tr[aria-selected="true"] { background: var(--wash); }
+#jobs tbody tr.no-results { color: var(--muted); }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+.key { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; }
+h2 { margin: 0 0 2px; font-size: 18px; font-weight: 600; }
+#facts { margin: 0; color: var(--ink-2); }
+#evidence { margin: 4px 0 0; color: var(--muted); }
+.controls { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 14px 0 6px; }
+[role="group"] { display: flex; flex-wrap: wrap; gap: 6px; }
+button {
+  font: inherit; color: var(--ink); background: var(--surface); cursor: pointer; text-align: left;
+  border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px;
+}
+button small { display: block; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+button[aria-pressed="true"] { background: var(--wash); border-color: var(--accent); }
+button:focus-visible, canvas:focus-visible, #jobs tr:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#caption { margin: 10px 0 4px; font-size: 12px; color: var(--ink-2); }
+#status { margin: 8px 0; color: var(--ink-2); }
+#status:empty { display: none; }
+#plot { position: relative; max-width: 840px; }
+#plot.loading canvas { opacity: 0.5; }
+canvas { display: block; }
+#heat { position: relative; }              /* axes layer: above the cells, transparent over the plot */
+#cells { position: absolute; image-rendering: pixelated; pointer-events: none; }
+#cells.smooth { image-rendering: auto; }
+#cursor {
+  position: absolute; pointer-events: none;
+  border: 1.5px solid var(--ink); box-shadow: 0 0 0 1.5px #fff, inset 0 0 0 1.5px #fff;
+}
+#readout { min-height: 1.4em; margin: 4px 0 18px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+#readout strong { color: var(--ink); }
+#metrics { width: 100%; max-width: 520px; }
+#metrics th {
+  padding: 12px 8px 4px; text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-2);
+  border-bottom: 1px solid var(--grid);
+}
+#metrics td { padding: 3px 8px; border-bottom: 1px solid var(--grid); }
+@media (max-width: 860px) {
+  body { height: auto; }
+  main { grid-template-columns: 1fr; }
+  #list { max-height: 40vh; border-right: 0; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>AF3 IDR–IDR pairs</h1>
+  <input id="q" type="search" placeholder="Filter: id, chain, label…" aria-label="Filter jobs">
+  <select id="label" aria-label="Label">
+    <option value="">All labels</option>
+    <option value="positive">positive</option>
+    <option value="negative">negative</option>
+    <option value="negative_scramble">negative_scramble</option>
+  </select>
+  <span id="count"></span>
+</header>
+<main>
+  <div id="list">
+    <table id="jobs">
+      <thead><tr><th>Job</th><th>Chains</th><th>Label</th><th class="num">ipTM</th><th class="num">Res.</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <section id="detail">
+    <h2 id="title"></h2>
+    <p id="facts"></p>
+    <p id="evidence"></p>
+    <div class="controls">
+      <div id="samples" role="group" aria-label="Server sample"></div>
+      <div id="kinds" role="group" aria-label="Matrix">
+        <button type="button" data-kind="pae">PAE</button>
+        <button type="button" data-kind="contacts">Contact probability</button>
+      </div>
+    </div>
+    <p id="caption"></p>
+    <p id="status" role="status"></p>
+    <div id="plot">
+      <canvas id="cells" hidden></canvas>
+      <canvas id="heat" tabindex="0" aria-label="Matrix heatmap; arrow keys move the cursor"></canvas>
+      <div id="cursor" hidden></div>
+    </div>
+    <p id="readout"></p>
+    <table id="metrics"></table>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const heat = $('heat'), cells = $('cells'), cursor = $('cursor');
+const cellsCtx = cells.getContext('2d', { willReadFrequently: true });   // CPU-backed: no GPU copy to lose
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const INK = { ink: css('--ink'), ink2: css('--ink-2'), muted: css('--muted'), axis: css('--axis'),
+              border: css('--border'), surface: css('--surface') };
+
+// sequential ramp: reference palette blue 100 -> 700, with the chart surface as "nothing"
+const RAMP = [INK.surface, '#cde2fb', '#b7d3f6', '#9ec5f4', '#86b6ef', '#6da7ec', '#5598e7',
+              '#3987e5', '#2a78d6', '#256abf', '#1c5cab', '#184f95', '#104281', '#0d366b'];
+const LUT = new Uint8ClampedArray(256 * 3);
+{
+  const rgb = RAMP.map(h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)));
+  for (let i = 0; i < 256; i++) {
+    const x = i / 255 * (rgb.length - 1), k = Math.min(Math.floor(x), rgb.length - 2), f = x - k;
+    for (let c = 0; c < 3; c++) LUT[i * 3 + c] = rgb[k][c] + (rgb[k + 1][c] - rgb[k][c]) * f;
+  }
+}
+
+// both views: darker = more confident structure (low error, likely contact)
+const KINDS = {
+  pae: {
+    field: 'pae', max: 32, ticks: [0, 10, 20, 30],
+    t: v => 1 - Math.min(v, 32) / 32,
+    value: v => `${v.toFixed(1)} Å`,
+    caption: 'PAE (Å): row = aligned residue, column = scored residue. Darker = lower expected position error.',
+    readout: (a, b) => `  PAE of ${b} when aligned on ${a}`,
+  },
+  contacts: {
+    field: 'contact_probs', max: 1, ticks: [0, 0.5, 1],
+    t: v => v,
+    value: v => v.toFixed(2),
+    caption: 'Contact probability (representative atoms within 8 Å). Darker = more likely in contact.',
+    readout: (a, b) => `  contact probability, ${a} × ${b}`,
+  },
+};
+const JOB_METRICS = ['iptm', 'ranking_score', 'ptm', 'pae_inter_mean', 'pae_inter_frac_lt10',
+                     'contact_prob_sum', 'n_contacts_p50', 'plddt_mean', 'ipsae', 'lis'];
+const M = { l: 58, r: 48, t: 8, b: 44 };   // plot margins: y ticks + chain names, colour bar, x ticks + chain names
+
+const state = { jobs: [], job: null, model: null, kind: 'pae', mat: null, cursor: null, size: 0 };
+const cache = new Map();                   // "job/sample" -> prepared matrix, last 12
+let loading = 0;
+
+function fmt(v) {
+  if (v === '' || v == null) return '—';
+  const n = Number(v);
+  return Number.isInteger(n) ? String(n) : n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+}
+function el(tag, text, cls) {
+  const e = document.createElement(tag);
+  if (text != null) e.textContent = text;
+  if (cls) e.className = cls;
+  return e;
+}
+
+// ------------------------------------------------------------------ job table
+function renderTable() {
+  const q = $('q').value.trim().toLowerCase(), label = $('label').value;
+  const shown = state.jobs.filter(j => (!label || j.label === label) && (!q ||
+    [j.job_id, j.job_name, j.chain_A, j.chain_B, j.label, j.pair_type, j.binding_mode, j.neg_type]
+      .join(' ').toLowerCase().includes(q)));
+  const rows = shown.map(j => {
+    const tr = el('tr'), on = j === state.job;
+    tr.dataset.id = j.job_id;
+    tr.tabIndex = on ? 0 : -1;
+    tr.setAttribute('aria-selected', on);
+    if (!j.samples.length) tr.classList.add('no-results');
+    const pair = el('td', `${j.chain_A} × ${j.chain_B}`, 'pair');
+    pair.title = j.job_name;
+    const key = el('span', null, 'key');
+    key.style.background = `var(--${j.label})`;
+    const labelCell = el('td');
+    labelCell.title = j.label;
+    labelCell.append(key, j.label === 'negative_scramble' ? 'scramble' : j.label);
+    tr.append(el('td', j.job_id), pair, labelCell,
+              el('td', j.scored ? fmt(j.scored.iptm) : '—', 'num'), el('td', j.total_residues, 'num'));
+    return tr;
+  });
+  if (rows.length && !shown.includes(state.job)) rows[0].tabIndex = 0;
+  $('jobs').tBodies[0].replaceChildren(...rows);
+  $('count').textContent = `${shown.length} of ${state.jobs.length} jobs · `
+    + `${state.jobs.filter(j => j.samples.length).length} with results`;
+}
+
+function select(id, model, kind) {
+  const job = state.jobs.find(j => j.job_id === id);
+  if (!job) return;
+  if (job !== state.job) state.cursor = null;
+  state.job = job;
+  state.model = job.samples.some(s => s.model === model) ? model : job.top_model;
+  if (KINDS[kind]) state.kind = kind;
+  remember();
+  for (const tr of $('jobs').tBodies[0].rows) {
+    const on = tr.dataset.id === id;
+    tr.setAttribute('aria-selected', on);
+    tr.tabIndex = on ? 0 : -1;
+  }
+  renderDetail();
+  loadMatrix();
+}
+
+function remember() {
+  history.replaceState(null, '', `#${state.job.job_id}/${state.model ?? ''}/${state.kind}`);
+}
+
+// ------------------------------------------------------------------ detail
+function renderDetail() {
+  const j = state.job;
+  $('title').textContent = `${j.job_id} · ${j.chain_A} × ${j.chain_B}`;
+  $('facts').textContent = [j.label, j.pair_type, j.binding_mode !== 'none' ? j.binding_mode : '', j.neg_type,
+    `evidence ${j.evidence_strength}`, j.in_pdb ? `PDB ${j.in_pdb}` : '',
+    j.memorised_control ? 'memorised control' : '', `${j.len_A} + ${j.len_B} residues`]
+    .filter(Boolean).join(' · ');
+  $('evidence').textContent = j.evidence;
+  $('samples').replaceChildren(...j.samples.map(s => {
+    const b = el('button');
+    b.type = 'button';
+    b.setAttribute('aria-pressed', s.model === state.model);
+    b.append(el('span', `Sample ${s.model}${s.model === j.top_model ? ' · top' : ''}`),
+             el('small', `ipTM ${fmt(s.iptm)} · ranking ${fmt(s.ranking_score)}`));
+    b.onclick = () => {
+      select(j.job_id, s.model);
+      $('samples').querySelector('[aria-pressed="true"]')?.focus();   // the buttons were rebuilt; keep keyboard place
+    };
+    return b;
+  }));
+  renderKinds();
+  renderMetrics();
+}
+
+function renderKinds() {
+  for (const b of $('kinds').children) b.setAttribute('aria-pressed', b.dataset.kind === state.kind);
+  $('caption').textContent = KINDS[state.kind].caption;
+}
+
+function renderMetrics() {
+  const j = state.job, s = j.samples.find(x => x.model === state.model), t = $('metrics');
+  t.replaceChildren();
+  const head = text => { const th = el('th', text); th.colSpan = 2; t.insertRow().append(th); };
+  const row = (name, value) => { const tr = t.insertRow(); tr.append(el('td', name), el('td', value, 'num')); };
+  if (s) {
+    head(`Sample ${s.model}${s.model === j.top_model ? ' (top)' : ''} · summary_confidences`);
+    row('ranking_score', fmt(s.ranking_score));
+    row('iptm', fmt(s.iptm));
+    row('ptm', fmt(s.ptm));
+    if (s.chain_pair_iptm?.length > 1) row('chain_pair_iptm [A,B]', fmt(s.chain_pair_iptm[0][1]));
+    if (s.chain_pair_pae_min?.length > 1)
+      row('chain_pair_pae_min [A,B] / [B,A], Å', `${fmt(s.chain_pair_pae_min[0][1])} / ${fmt(s.chain_pair_pae_min[1][0])}`);
+    row('fraction_disordered', fmt(s.fraction_disordered));
+    row('has_clash', fmt(s.has_clash));
+  }
+  if (j.scored) {
+    head('Job · top sample ± SD over samples · af3_scored.csv');
+    for (const m of JOB_METRICS)
+      row(m, j.scored[m] === '' ? '—' : `${fmt(j.scored[m])} ± ${fmt(j.scored[`${m}_sd`])}`);
+  }
+}
+
+// ------------------------------------------------------------------ matrix
+async function loadMatrix() {
+  const token = ++loading, j = state.job, s = j.samples.find(x => x.model === state.model);
+  const key = `${j.job_id}/${state.model}`;
+  $('plot').classList.remove('loading');
+  if (!s || !s.has_matrix) {
+    state.mat = null;
+    $('status').textContent = j.samples.length ? 'No full_data file for this sample.' : 'No results for this job yet.';
+    renderReadout();
+    return render();
+  }
+  $('status').textContent = '';
+  if (!cache.has(key)) {
+    $('plot').classList.add('loading');        // keep the previous render, dimmed, while this loads
+    try {
+      const r = await fetch(`api/matrix/${encodeURIComponent(j.job_id)}/${state.model}.json`);
+      if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+      cache.set(key, prepare(await r.json(), j));
+      if (cache.size > 12) cache.delete(cache.keys().next().value);
+    } catch (e) {
+      if (token !== loading) return;
+      state.mat = null;
+      $('plot').classList.remove('loading');
+      $('status').textContent = `Could not load the matrix (${e.message}).`;
+      renderReadout();
+      return render();
+    }
+    if (token !== loading) return;
+    $('plot').classList.remove('loading');
+  }
+  state.mat = cache.get(key);
+  if (state.cursor && Math.max(...state.cursor) >= state.mat.n) state.cursor = null;
+  renderReadout();
+  render();
+}
+
+function prepare(raw, job) {
+  const chains = raw.token_chain_ids, n = chains.length;
+  return { raw, job, n, nA: chains.lastIndexOf(chains[0]) + 1, chains, res: raw.token_res_ids, images: {},
+           seq: { [chains[0]]: job.seq_A, [chains[n - 1]]: job.seq_B } };
+}
+
+function pixels(mat, kind) {                   // n x n RGBA, one pixel per token pair; plain memory, not a canvas
+  if (mat.images[kind]) return mat.images[kind];
+  const { n } = mat, src = mat.raw[KINDS[kind].field], t = KINDS[kind].t, img = new ImageData(n, n);
+  for (let i = 0; i < n; i++) {
+    const row = src[i];
+    for (let j = 0; j < n; j++) {
+      const k = Math.round(t(row[j]) * 255) * 3, o = (i * n + j) * 4;
+      img.data[o] = LUT[k]; img.data[o + 1] = LUT[k + 1]; img.data[o + 2] = LUT[k + 2]; img.data[o + 3] = 255;
+    }
+  }
+  return (mat.images[kind] = img);
+}
+
+// Two layers: #cells holds the matrix, one canvas pixel per token pair scaled by CSS, and #heat on top
+// holds the frame, chain boundary, axes and colour bar. Hover only moves #cursor, so it repaints neither.
+function render() {
+  const mat = state.mat, dpr = window.devicePixelRatio || 1;
+  const S = Math.max(200, Math.min(720, $('plot').clientWidth - M.l - M.r));
+  const W = M.l + S + M.r, H = M.t + S + M.b;
+  state.size = S;
+  if (heat.width !== Math.round(W * dpr) || heat.height !== Math.round(H * dpr)) {
+    heat.width = Math.round(W * dpr);
+    heat.height = Math.round(H * dpr);
+    heat.style.width = `${W}px`;
+    heat.style.height = `${H}px`;
+  }
+  const ctx = heat.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = INK.border;
+  ctx.strokeRect(M.l - 0.5, M.t - 0.5, S + 1, S + 1);
+  cells.hidden = !mat;
+  if (mat) {
+    if (cells.width !== mat.n) cells.width = cells.height = mat.n;
+    cellsCtx.putImageData(pixels(mat, state.kind), 0, 0);
+    Object.assign(cells.style, { left: `${M.l}px`, top: `${M.t}px`, width: `${S}px`, height: `${S}px` });
+    cells.classList.toggle('smooth', mat.n > S * dpr);   // crisp cells unless tokens outnumber pixels
+
+    const px = S / mat.n, edge = mat.nA * px;
+    ctx.strokeStyle = INK.ink2;                      // chain boundary
+    ctx.beginPath();
+    ctx.moveTo(M.l + edge, M.t); ctx.lineTo(M.l + edge, M.t + S);
+    ctx.moveTo(M.l, M.t + edge); ctx.lineTo(M.l + S, M.t + edge);
+    ctx.stroke();
+    drawAxes(ctx, mat, S, px);
+    drawColorbar(ctx, S);
+  }
+  placeCursor();
+}
+
+function placeCursor() {                           // hovered / focused cell, never smaller than 7px
+  const mat = state.mat, c = state.cursor;
+  cursor.hidden = !mat || !c;
+  if (cursor.hidden) return;
+  const px = state.size / mat.n, size = Math.max(px, 7);
+  Object.assign(cursor.style, { width: `${size}px`, height: `${size}px`,
+    left: `${M.l + (c[1] + 0.5) * px - size / 2}px`, top: `${M.t + (c[0] + 0.5) * px - size / 2}px` });
+}
+
+function drawAxes(ctx, mat, S, px) {
+  const job = mat.job;
+  ctx.font = '11px system-ui, -apple-system, "Segoe UI", sans-serif';
+  ctx.lineWidth = 1;
+  let lastX = -1e9, lastY = -1e9;
+  for (const [start, end, name] of [[0, mat.nA, `A · ${job.chain_A}`], [mat.nA, mat.n, `B · ${job.chain_B}`]]) {
+    const len = end - start, step = len > 300 ? 100 : len > 120 ? 50 : len > 50 ? 20 : 10;
+    const marks = [1];
+    for (let r = step; r <= len; r += step) marks.push(r);
+    for (const r of marks) {
+      const p = (start + r - 0.5) * px, x = M.l + p, y = M.t + p;
+      ctx.strokeStyle = INK.axis;
+      ctx.beginPath();
+      ctx.moveTo(x, M.t + S); ctx.lineTo(x, M.t + S + 4);
+      ctx.moveTo(M.l - 4, y); ctx.lineTo(M.l, y);
+      ctx.stroke();
+      ctx.fillStyle = INK.muted;
+      if (x - lastX >= 24) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(r, x, M.t + S + 6); lastX = x; }
+      if (y - lastY >= 13) { ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(r, M.l - 6, y); lastY = y; }
+    }
+    const mid = (start + len / 2) * px, room = len * px - 6;
+    ctx.fillStyle = INK.ink2;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(fit(ctx, name, room), M.l + mid, M.t + S + 24);
+    ctx.save();
+    ctx.translate(12, M.t + mid);
+    ctx.rotate(-Math.PI / 2);
+    ctx.textBaseline = 'middle';
+    ctx.fillText(fit(ctx, name, room), 0, 0);
+    ctx.restore();
+  }
+}
+
+function fit(ctx, text, width) {
+  if (ctx.measureText(text).width <= width) return text;
+  while (text.length > 1 && ctx.measureText(`${text}…`).width > width) text = text.slice(0, -1);
+  return `${text}…`;
+}
+
+function drawColorbar(ctx, S) {                    // value rises upwards
+  const k = KINDS[state.kind], x = M.l + S + 12, w = 10;
+  const g = ctx.createLinearGradient(0, M.t, 0, M.t + S);
+  RAMP.forEach((c, i) => {
+    const t = i / (RAMP.length - 1);
+    g.addColorStop(state.kind === 'pae' ? t : 1 - t, c);
+  });
+  ctx.fillStyle = g;
+  ctx.fillRect(x, M.t, w, S);
+  ctx.strokeStyle = INK.border;
+  ctx.strokeRect(x - 0.5, M.t - 0.5, w + 1, S + 1);
+  ctx.fillStyle = INK.muted;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  for (const v of k.ticks) ctx.fillText(v, x + w + 4, M.t + (1 - v / k.max) * S);
+}
+
+function renderReadout() {
+  const mat = state.mat, c = state.cursor, out = $('readout');
+  if (!mat) return out.replaceChildren();
+  if (!c) return out.replaceChildren('Hover over the matrix, or focus it and use the arrow keys (shift = 10 residues).');
+  const k = KINDS[state.kind], [i, j] = c;
+  const name = t => `${mat.chains[t]} ${(mat.seq[mat.chains[t]] || '')[mat.res[t] - 1] || ''}${mat.res[t]}`;
+  out.replaceChildren(el('strong', k.value(mat.raw[k.field][i][j])), k.readout(name(i), name(j)));
+}
+
+function setCursor(c) {
+  state.cursor = c;
+  renderReadout();
+  placeCursor();
+}
+
+// ------------------------------------------------------------------ events
+heat.addEventListener('pointermove', e => {
+  if (!state.mat) return;
+  const r = heat.getBoundingClientRect(), S = state.size, n = state.mat.n;
+  const x = e.clientX - r.left - M.l, y = e.clientY - r.top - M.t;
+  setCursor(x >= 0 && y >= 0 && x < S && y < S ? [Math.floor(y / S * n), Math.floor(x / S * n)] : null);
+});
+heat.addEventListener('pointerleave', () => { if (document.activeElement !== heat) setCursor(null); });
+heat.addEventListener('focus', () => { if (state.mat && !state.cursor) setCursor([0, 0]); });
+heat.addEventListener('blur', () => setCursor(null));
+heat.addEventListener('keydown', e => {
+  const d = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] }[e.key];
+  if (!d || !state.mat) return;
+  e.preventDefault();
+  const n = state.mat.n, step = e.shiftKey ? 10 : 1, [i, j] = state.cursor || [0, 0];
+  const clamp = v => Math.max(0, Math.min(n - 1, v));
+  setCursor([clamp(i + d[0] * step), clamp(j + d[1] * step)]);
+});
+
+const tbody = $('jobs').tBodies[0];
+tbody.addEventListener('click', e => { const tr = e.target.closest('tr'); if (tr) select(tr.dataset.id); });
+tbody.addEventListener('keydown', e => {
+  const rows = [...tbody.rows], i = rows.indexOf(e.target.closest('tr'));
+  const next = { ArrowDown: i + 1, ArrowUp: i - 1 }[e.key] ?? (e.key === 'Enter' ? i : null);
+  if (next == null || !rows[next]) return;
+  e.preventDefault();
+  select(rows[next].dataset.id);
+  rows[next].focus();
+  rows[next].scrollIntoView({ block: 'nearest' });
+});
+$('kinds').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || !state.job) return;
+  state.kind = b.dataset.kind;
+  remember();
+  renderKinds();
+  renderReadout();
+  render();
+});
+$('q').addEventListener('input', renderTable);
+$('label').addEventListener('change', renderTable);
+new ResizeObserver(() => render()).observe($('plot'));
+// repaint anything the browser dropped while the page was hidden or the GPU was reset
+document.addEventListener('visibilitychange', () => { if (!document.hidden) render(); });
+for (const c of [heat, cells]) c.addEventListener('contextrestored', render);
+
+(async () => {
+  try {
+    state.jobs = await (await fetch('api/jobs.json')).json();
+  } catch (e) {
+    $('status').textContent = 'Could not load the job list.';
+    return;
+  }
+  renderTable();
+  const [id, model, kind] = decodeURIComponent(location.hash.slice(1)).split('/');
+  const job = state.jobs.find(j => j.job_id === id) || state.jobs.find(j => j.samples.length) || state.jobs[0];
+  if (job) select(job.job_id, model ? Number(model) : undefined, kind);
+})();
+</script>
+</body>
+</html>

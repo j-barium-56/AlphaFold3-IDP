@@ -1,0 +1,187 @@
+[
+  {
+    "name": "P06_NCOA3_ACTR__CBP_NCBD_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "EGQSDERALLDQLHTLLSNTDATGLEEIDRALGIPELVNQGQALEPK",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      },
+      {
+        "proteinChain": {
+          "sequence": "PNRSISPSALQDLLRTLKSPSSPQQQQQVLNILKSNPQLMAAFIKQRTAKYVANQPGMQ",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "P07_FOS_bZIP__JUN_bZIP_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "KRRIRRERNKMAAAKCRNRRRELTDTLQAETDQLEDEKSALQTEIANLLKEKEKLEFILAAH",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      },
+      {
+        "proteinChain": {
+          "sequence": "RIKAERKRMRNRIAASKCRKRKLERIARLEEKVKTLKAQNSELASTANMLREQVAQLKQKVMNHVNS",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "P20_MAX_bHLHZ__MAX_bHLHZ_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "ADKRAHHNALERKRRDHIKDSFHSLRDSVPSLQGEKASRAQILDKATEYIQYMRRKNHTHQQDIDDLKRQNALLEQQVRAL",
+          "count": 2,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "P21_GCN4_LZ__GCN4_LZ_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "RMKQLEDKVEELLSKNYHLENEVARLKKLVGER",
+          "count": 2,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "N15_FOS_bZIP__MAX_bHLHZ_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "KRRIRRERNKMAAAKCRNRRRELTDTLQAETDQLEDEKSALQTEIANLLKEKEKLEFILAAH",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      },
+      {
+        "proteinChain": {
+          "sequence": "ADKRAHHNALERKRRDHIKDSFHSLRDSVPSLQGEKASRAQILDKATEYIQYMRRKNHTHQQDIDDLKRQNALLEQQVRAL",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "N16_JUN_bZIP__MAX_bHLHZ_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "RIKAERKRMRNRIAASKCRKRKLERIARLEEKVKTLKAQNSELASTANMLREQVAQLKQKVMNHVNS",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      },
+      {
+        "proteinChain": {
+          "sequence": "ADKRAHHNALERKRRDHIKDSFHSLRDSVPSLQGEKASRAQILDKATEYIQYMRRKNHTHQQDIDDLKRQNALLEQQVRAL",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "N17_GCN4_LZ__JUN_bZIP_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "RMKQLEDKVEELLSKNYHLENEVARLKKLVGER",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      },
+      {
+        "proteinChain": {
+          "sequence": "RIKAERKRMRNRIAASKCRKRKLERIARLEEKVKTLKAQNSELASTANMLREQVAQLKQKVMNHVNS",
+          "count": 1,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "N26_NCOA3_ACTR__NCOA3_ACTR_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "EGQSDERALLDQLHTLLSNTDATGLEEIDRALGIPELVNQGQALEPK",
+          "count": 2,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "N27_CBP_NCBD__CBP_NCBD_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "PNRSISPSALQDLLRTLKSPSSPQQQQQVLNILKSNPQLMAAFIKQRTAKYVANQPGMQ",
+          "count": 2,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  },
+  {
+    "name": "N28_FOS_bZIP__FOS_bZIP_notmpl",
+    "modelSeeds": [],
+    "sequences": [
+      {
+        "proteinChain": {
+          "sequence": "KRRIRRERNKMAAAKCRNRRRELTDTLQAETDQLEDEKSALQTEIANLLKEKEKLEFILAAH",
+          "count": 2,
+          "useStructureTemplate": false
+        }
+      }
+    ],
+    "dialect": "alphafoldserver",
+    "version": 1
+  }
+]
