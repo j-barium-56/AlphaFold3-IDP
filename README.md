@@ -72,7 +72,19 @@ Four things that matter for reading those numbers:
   memorised controls.
 - **Templates were on for all 95 chain entries** — the server default, never a choice made
   here — and they land on both the memorised positives and the matched-internal negatives.
-  The rerun that tests this is the first item in the handoff.
+  **Rerun without templates (9 of 10 jobs, 15 Sep): the memorised controls and hard-zipper
+  negatives move by ≤0.05 ipTM.** Templates are not doing the work; test 2a's failure is a
+  property of AF3's coiled-coil prior, not of template retrieval. Full table in
+  [`af3_idr_plan.md`](af3_idr_plan.md).
+- **The homotypic failure is structural, not just statistical.** `contact_participation_ratio`
+  — already in the metric panel — shows AF3 spreads inter-chain contacts diffusely across
+  the whole sequence for *both* real LLPS-forming domains (FUS, hnRNPA1/2, TDP-43, ...) and
+  for homotypic negatives with no self-association evidence (PTMA, NPM1, p53 TAD, ...): 700–
+  2900 either way, AUC 0.511 (chance) on the pre-registered split. The two solved homo_fold
+  structures (GCN4, MAX) score 52–108 by contrast — a real, localised interface. AF3 is
+  stacking aromatic-rich disordered chains indiscriminately, not recognising specific
+  self-association; a compact-looking homotypic structure is not evidence of binding unless
+  its contact map is also localised.
 
 What did work: the three matched-internal contrasts, which rest on no literature absence at
 all. AF3 ranks ACTR×NCBD above ACTR×ACTR and NCBD×NCBD, and c-Fos×c-Jun above c-Fos×c-Fos —

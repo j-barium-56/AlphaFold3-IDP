@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AF3 IDR–IDR viewer</title>
+<script src="https://cdn.jsdelivr.net/npm/ngl@2.3.1/dist/ngl.js"></script>
 <style>
 :root {
   color-scheme: light;
@@ -77,7 +78,11 @@ button:focus-visible, canvas:focus-visible, #jobs tr:focus-visible { outline: 2p
 #status { margin: 8px 0; color: var(--ink-2); }
 #status:empty { display: none; }
 #plot { position: relative; max-width: 840px; }
-#plot.loading canvas { opacity: 0.5; }
+#plot.loading canvas, #plot.loading #structViewport { opacity: 0.5; }
+#structViewport { width: 100%; height: 520px; background: #fff; border: 1px solid var(--border); border-radius: 6px; }
+#plddtLegend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 8px 0 4px; font-size: 12px; color: var(--ink-2); }
+#plddtLegend span { display: inline-flex; align-items: center; gap: 5px; }
+#plddtLegend i { width: 9px; height: 9px; border-radius: 2px; }
 canvas { display: block; }
 #heat { position: relative; }              /* axes layer: above the cells, transparent over the plot */
 #cells { position: absolute; image-rendering: pixelated; pointer-events: none; }
@@ -159,14 +164,22 @@ canvas { display: block; }
       <div id="kinds" role="group" aria-label="Matrix">
         <button type="button" data-kind="pae">PAE</button>
         <button type="button" data-kind="contacts">Contact probability</button>
+        <button type="button" data-kind="structure">Structure</button>
       </div>
     </div>
     <p id="caption"></p>
+    <div id="plddtLegend" hidden>
+      <span><i style="background:#0053d6"></i>very high (pLDDT &gt; 90)</span>
+      <span><i style="background:#65cbf3"></i>confident (70–90)</span>
+      <span><i style="background:#ffdb13"></i>low (50–70)</span>
+      <span><i style="background:#ff7d45"></i>very low (&lt; 50)</span>
+    </div>
     <p id="status" role="status"></p>
     <div id="plot">
       <canvas id="cells" hidden></canvas>
       <canvas id="heat" tabindex="0" aria-label="Matrix heatmap; arrow keys move the cursor"></canvas>
       <div id="cursor" hidden></div>
+      <div id="structViewport" hidden></div>
     </div>
     <p id="readout"></p>
     <table id="metrics"></table>
@@ -280,7 +293,7 @@ function select(id, model, kind) {
   if (job !== state.job) state.cursor = null;
   state.job = job;
   state.model = job.samples.some(s => s.model === model) ? model : job.top_model;
-  if (KINDS[kind]) state.kind = kind;
+  if (KINDS[kind] || kind === 'structure') state.kind = kind;
   remember();
   for (const tr of $('jobs').tBodies[0].rows) {
     const on = tr.dataset.id === id;
@@ -288,7 +301,11 @@ function select(id, model, kind) {
     tr.tabIndex = on ? 0 : -1;
   }
   renderDetail();
-  loadMatrix();
+  updateView();
+}
+
+function updateView() {
+  if (state.kind === 'structure') loadStructure(); else loadMatrix();
 }
 
 function remember() {
@@ -322,7 +339,13 @@ function renderDetail() {
 
 function renderKinds() {
   for (const b of $('kinds').children) b.setAttribute('aria-pressed', b.dataset.kind === state.kind);
-  $('caption').textContent = KINDS[state.kind].caption;
+  const isStruct = state.kind === 'structure';
+  $('caption').textContent = isStruct
+    ? 'Cartoon, coloured by per-residue predicted confidence (pLDDT). Drag to rotate, scroll to zoom.'
+    : KINDS[state.kind].caption;
+  $('plddtLegend').hidden = !isStruct;
+  heat.hidden = isStruct;
+  $('structViewport').hidden = !isStruct;
 }
 
 function renderMetrics() {
@@ -390,6 +413,53 @@ function prepare(raw, job) {
            seq: { [chains[0]]: job.seq_A, [chains[n - 1]]: job.seq_B } };
 }
 
+// ------------------------------------------------------------------ structure
+// pLDDT is written into the mmCIF B_iso_or_equiv column; band it the way AlphaFold's own viewer does.
+let nglStage = null, structLoading = 0;
+// addScheme returns a generated "<uid>|label" id - that, not the label, is what addRepresentation needs.
+const PLDDT_SCHEME = window.NGL && NGL.ColormakerRegistry.addScheme(function () {
+  this.atomColor = atom => atom.bfactor > 90 ? 0x0053d6 : atom.bfactor > 70 ? 0x65cbf3
+    : atom.bfactor > 50 ? 0xffdb13 : 0xff7d45;
+}, 'plddt');
+
+function getStage() {
+  if (!nglStage) {
+    nglStage = new NGL.Stage('structViewport', { backgroundColor: 'white' });
+    new ResizeObserver(() => nglStage.handleResize()).observe($('structViewport'));
+  }
+  return nglStage;
+}
+
+async function loadStructure() {
+  const token = ++structLoading, j = state.job, s = j.samples.find(x => x.model === state.model);
+  if (!window.NGL) {
+    $('status').textContent = 'Structure viewer failed to load (blocked script?).';
+    return;
+  }
+  const stage = getStage();
+  if (!s || !s.has_matrix) {
+    stage.removeAllComponents();
+    $('status').textContent = j.samples.length ? 'No structure file for this sample.' : 'No results for this job yet.';
+    return;
+  }
+  $('status').textContent = '';
+  $('plot').classList.add('loading');            // keep the previous structure, dimmed, while this loads
+  try {
+    const stale = stage.compList.slice();
+    const comp = await stage.loadFile(
+      `api/structures/${encodeURIComponent(j.job_id)}/${state.model}.cif`, { ext: 'cif' });
+    if (token !== structLoading) { stage.removeComponent(comp); return; }
+    for (const c of stale) stage.removeComponent(c);
+    comp.addRepresentation('cartoon', { color: PLDDT_SCHEME, quality: 'high' });
+    comp.autoView();
+  } catch (e) {
+    if (token !== structLoading) return;
+    $('status').textContent = `Could not load the structure (${e.message}).`;
+  } finally {
+    if (token === structLoading) $('plot').classList.remove('loading');
+  }
+}
+
 function pixels(mat, kind) {                   // n x n RGBA, one pixel per token pair; plain memory, not a canvas
   if (mat.images[kind]) return mat.images[kind];
   const { n } = mat, src = mat.raw[KINDS[kind].field], t = KINDS[kind].t, img = new ImageData(n, n);
@@ -406,6 +476,7 @@ function pixels(mat, kind) {                   // n x n RGBA, one pixel per toke
 // Two layers: #cells holds the matrix, one canvas pixel per token pair scaled by CSS, and #heat on top
 // holds the frame, chain boundary, axes and colour bar. Hover only moves #cursor, so it repaints neither.
 function render() {
+  if (state.kind === 'structure') return;
   const mat = state.mat, dpr = window.devicePixelRatio || 1;
   const S = Math.max(200, Math.min(720, $('plot').clientWidth - M.l - M.r));
   const W = M.l + S + M.r, H = M.t + S + M.b;
@@ -509,6 +580,7 @@ function drawColorbar(ctx, S) {                    // value rises upwards
 
 function renderReadout() {
   const mat = state.mat, c = state.cursor, out = $('readout');
+  if (state.kind === 'structure') return out.replaceChildren();
   if (!mat) return out.replaceChildren();
   if (!c) return out.replaceChildren('Hover over the matrix, or focus it and use the arrow keys (shift = 10 residues).');
   const k = KINDS[state.kind], [i, j] = c;
@@ -554,12 +626,12 @@ tbody.addEventListener('keydown', e => {
 });
 $('kinds').addEventListener('click', e => {
   const b = e.target.closest('button');
-  if (!b || !state.job) return;
+  if (!b || !state.job || b.dataset.kind === state.kind) return;
   state.kind = b.dataset.kind;
   remember();
   renderKinds();
   renderReadout();
-  render();
+  updateView();
 });
 $('q').addEventListener('input', renderTable);
 $('label').addEventListener('change', renderTable);

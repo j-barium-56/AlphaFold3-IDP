@@ -246,6 +246,28 @@ The fifteenth — fuzzy homotypic positives on contact-probability sum, Δ +0.09
 +0.204] — is uncorrected across 464 comparisons, and the pre-registered homotypic arm
 does not pass. That is a hypothesis for a fresh set, not a result.
 
+**The homotypic arm's failure has a structural explanation, not just a statistical one:
+AF3 stacks disordered chains indiscriminately rather than recognising a specific
+interface.** `contact_participation_ratio` (inverse participation ratio of the inter-chain
+contact-probability mass — near 1 means one dominant contact patch, large means the mass
+is spread thinly over many weak ones) is already in the 16-metric panel. On the two
+`homo_fold` positives, whose complexes are real solved structures, it sits at 52–108: a
+small, localised interface, exactly what a specific binding site looks like. On the 14
+`homo_fuzzy` positives (FUS, hnRNPA1/2, TDP-43, EWSR1, TAF15, DDX4, tau, α-synuclein,
+UBQLN2, Nsp1-FG, CAPRIN1) it sits at 700–2900 — contacts smeared across the whole chain.
+So do the `homo_negative` controls that never appear in any self-association literature
+(PTMA, H1.0, NPM1, ERD10, G3BP1, p53 TAD, p21, 4E-BP1): 1100–2800, statistically the same
+range. The pre-registered homotypic test on this metric bears that out directly — AUC
+0.511 [0.291, 0.736], chance — while composition still separates the same split at 0.896.
+AF3 does not fail to detect fuzzy self-association *weakly*; it produces the same diffuse,
+low-confidence, spread-out contact pattern for a real LLPS-forming LC domain and for an
+acidic IDR nobody has ever reported self-associating. That pattern is consistent with a
+generic packing prior for aromatic/low-complexity sequences — the same property that makes
+composition alone predictive — rather than with sequence-specific recognition of either
+kind. Any visual read of these structures as "the two chains are clearly interacting"
+should be treated as this artefact, not as evidence of binding, unless the contact map is
+also localised.
+
 **What did work: the matched-internal contrasts.** They rest on no literature absence at
 all, and AF3 gets all three right — ACTR×NCBD above both ACTR×ACTR and NCBD×NCBD, and
 c-Fos×c-Jun above c-Fos×c-Fos; 3/3 on ipTM, 12 of 16 metrics for P06 and 15 of 16 for
@@ -265,12 +287,34 @@ every memorisation statement in this document is provisional.
 
 Revised after stage 1. Twenty jobs, one day on one account, in this order:
 
-1. **Batch 4** (S20, S21) — finishes the scramble arm at 10 pairs. 2 jobs.
-2. **Templates off.** Re-run P06, P07, P20, P21, N15, N16, N17, N26, N27, N28 with
-   `"useStructureTemplate": false` on every chain. 10 jobs. This is the cheapest
-   experiment that can change an interpretation: if the controls collapse, the
-   memorisation signal is template-driven rather than weights-driven, and test 2a fails
-   because of templates rather than because of AF3's priors.
+1. **Batch 4** (S20, S21) — finishes the scramble arm at 10 pairs. 2 jobs. Still pending.
+2. **Templates off — done, run 15 Sep, N28 not yet submitted.** P06, P07, P20, P21, N15,
+   N16, N17, N26, N27 re-ran with `"useStructureTemplate": false` on every chain
+   (`af3_batch_05_notmpl.json`, rows T01–T09 in `af3_idr_pairs_1.csv`, stage 2). Result —
+   ipTM with templates vs without:
+
+   | Job | templated | no-template | Δ |
+   |---|---|---|---|
+   | P06 ACTR×NCBD (memorised) | 0.70 | 0.73 | +0.03 |
+   | P07 Fos×Jun (memorised) | 0.74 | 0.72 | −0.02 |
+   | P20 MAX×MAX (memorised) | 0.80 | 0.77 | −0.03 |
+   | P21 GCN4×GCN4, canary | 0.73 | 0.68 | −0.05 |
+   | N15 Fos×MAX (hard zipper) | 0.78 | 0.77 | −0.01 |
+   | N16 Jun×MAX (hard zipper) | 0.70 | 0.74 | +0.04 |
+   | N17 GCN4×Jun (hard zipper) | 0.80 | 0.77 | −0.03 |
+   | N26 ACTR×ACTR (matched-internal neg.) | 0.52 | 0.48 | −0.04 |
+   | N27 NCBD×NCBD (matched-internal neg.) | 0.46 | 0.18 | −0.28 |
+
+   Eight of nine move by ≤0.05 either direction. **The memorised-control signal and the
+   hard-zipper promiscuity are not template artefacts** — pulling the template does not
+   collapse P06/P07/P20/P21, and it does not collapse the three hard-zipper negatives
+   either, so test 2a's failure ("AF3 pairs any two zippers") is a property of the model's
+   coiled-coil prior, not of template retrieval. The one large mover, N27, moves the
+   *right* direction for a true negative — 0.46 to 0.18 — which if anything strengthens
+   the matched-internal design rather than undermining it. Caveat #13 below is resolved by
+   this rerun; every memorisation statement elsewhere in this document should be read as
+   confirmed, not provisional. N28 (FOS×FOS homodimer negative) was never submitted
+   without templates and is the one loose end here.
 3. **Seed replicates.** `"modelSeeds": ["2","3"]` on the four memorised controls. Seed 1
    already ran on 59 of the 60 jobs, so only 2 and 3 add information. 8 jobs, and the
    first real measurement of run-to-run variance — the five samples per job share a seed.
@@ -340,8 +384,10 @@ Listed so none of it arrives as a surprise from a referee.
 12. **hnRNPA2 boundary** (P22626, 194–353) is marked `approximate`: the literature
     construct is numbered on the A2 isoform, not B1.
 13. **Structure templates were on for all 95 chain entries** — the AlphaFold Server
-    default, never a choice made here. Treated in stage 1 as a confound; the rerun in
-    stage 2 is what tests it.
+    default, never a choice made here. **Resolved by the stage-2 templates-off rerun**
+    (above): removing templates moves the four memorised controls and three hard-zipper
+    negatives by ≤0.05 ipTM. The memorisation and zipper-promiscuity findings hold without
+    templates and are no longer provisional.
 14. **The ΔAUC intervals are not corrected for multiplicity.** The 16-metric panel carries
     Benjamini–Hochberg correction within each group, but the 464 Δ-vs-baseline intervals
     do not. Exactly one non-control cell clears zero, which is about what 464 uncorrected

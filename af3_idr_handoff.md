@@ -1,7 +1,11 @@
 # AF3 IDR–IDR benchmark — handoff
 
-**Status:** stage 1 scored. 60 of 62 jobs run, parsed and reported; batch 4 (2 jobs) pending.
-**Written:** 14 September 2026, updated the same evening with the stage-1 result.
+**Status:** stage 1 scored. 60 of 62 jobs run, parsed and reported; batch 4 (2 jobs)
+pending. Stage 2 templates-off ablation done (9 of 10 jobs, 15 Sep) — see §4 item 2 and
+§5 below; it resolves the templates caveat that was previously blocking every
+memorisation claim.
+**Written:** 14 September 2026, updated 15 September with the stage-1 result and the
+templates-off / contact-localisation follow-ups.
 **Companion doc:** `af3_idr_plan.md` (the scientific design and the numbers in full).
 This document is the operational one — enough to pick the project up cold.
 
@@ -36,6 +40,8 @@ not IDR–IDR, not fuzzy complexes, not homotypic, not phase separation.
 | `af3_idr_pairs_1.csv` | The dataset. One row per job: both sequences, all labels, `evidence_strength`, stage |
 | `af3_idr_regions.csv` | 30 IDR regions: accession, boundaries, sequence, `boundary_confidence`. p53 TAD, p21 and 4E-BP1 were back-filled after stage 1; the histone id is `H1.0_full` here and `H10_full` in the pair table |
 | `af3_batch_01..04.json` | Upload-ready AlphaFold Server batch files (20/20/20/2) |
+| `af3_batch_05_notmpl.json` | Templates-off ablation, 10 jobs — 9 run 15 Sep, N28 outstanding |
+| `af3_batch_06_monomers.json` | **New, not yet submitted.** 30 single-chain jobs, one per region in `af3_idr_regions.csv`, names `M_<region_id>` sanitised. `parse_af3_results.py` won't pick these up as-is — it expects a pairs CSV row per job; a monomer needs its own small script reading `summary_metrics()` only (no `interchain_metrics`, since there's one chain) — write that when the results come back rather than before |
 | `baseline_leakage.py` | Composition-only baseline. **Run before AlphaFold** |
 | `parse_af3_results.py` | Result zips → `af3_scored.csv`, ΔAUC tests, corrected metric panel |
 | `af3_report_stats.py` | Every grouping × metric → `af3_report_data.json` (uses the parser's own functions) |
@@ -55,20 +61,42 @@ workspace and are only needed if the set is rebuilt. Ask for them if so.
 1. **Submit batch 4** (S20, S21). Finishes the scramble arm at 10 pairs. The paired test is
    currently 6/8 with a sign-test p of 0.29 — two more pairs will not fix the power, but it
    completes the arm as designed.
-2. **Templates off.** Re-run P06, P07, P20, P21, N15, N16, N17, N26, N27, N28 with
-   `"useStructureTemplate": false` on every chain — 10 jobs. **This is the highest-value
-   experiment left**, because templates were on for all 95 chain entries by server default
-   and they land squarely on the memorised positives *and* the matched-internal negatives.
-   If the controls collapse without templates, test 2a's failure is about templates rather
-   than about AF3's priors, and the memorisation caveat changes shape.
+2. **Templates off — done for 9/10, N28 outstanding.** P06, P07, P20, P21, N15, N16, N17,
+   N26, N27 re-ran 15 Sep with `"useStructureTemplate": false`
+   (`af3_batch_05_notmpl.json`, results in `data/09_15_batch5/`, rows T01–T09 in the pairs
+   CSV). **Result: 8 of 9 move ≤0.05 ipTM; templates are not driving the memorisation or
+   the hard-zipper promiscuity.** Full table and reading in `af3_idr_plan.md` §"Stage
+   2 — what to run next". Only N28 (FOS×FOS homodimer) still needs a no-template run to
+   close this out.
 3. **Seed replicates.** `"modelSeeds": ["2","3"]` on P06, P07, P20, P21 only — 8 jobs.
    Seed 1 already ran on 59 of 60 jobs, so seeds 2 and 3 are the only new information.
-   This is the first actual measurement of run-to-run variance.
+   This is the first actual measurement of run-to-run variance. **Now the highest-value
+   experiment left**, since templates-off closed out item 2.
 4. **Confirm or drop** the two `uncertain` negatives: H1.0 alone (N22) and ERD10 alone
    (N24). They currently sit in every headline number on unconfirmed labels.
 5. **Decide how test 3 handles length, and write it down before looking again.** Either a
    length-matched subset or the partialled version the parser already asks for. Deciding
    after seeing the numbers is the thing the pre-registration exists to prevent.
+6. **Monomer baseline — batch drafted, not submitted.** `af3_batch_06_monomers.json` (new,
+   generated from `af3_idr_regions.csv`) has all 30 regions as single-chain jobs, names
+   sanitised. Gives a pLDDT/compactness reference to subtract per chain — useful now that
+   mean pLDDT is length-confounded (ρ = −0.60) and inverted in the headline test. Upload
+   when there's server budget; nothing else depends on it.
+7. **Expand `matched_internal` with non-fuzzy, structured IDR–IDR pairs.** The one design
+   that worked (3/3 correct orderings) and the fastest way to grow real ground truth
+   instead of more `absence_only` negatives. Candidate MoRF/coupled-folding pairs with
+   solved structures, **sequences not yet verified against UniProt — do that before
+   building any batch file**, given the FMR1 garbling history (§6):
+   - p53 TAD × MDM2 N-domain (1YCR) — positive; p53 TAD alone (already N29) as the matched
+     negative half.
+   - PUMA BH3 × MCL-1 (2ROC) vs BAD BH3 × MCL-1 (non-binder) — matched-internal pair on the
+     MCL-1 side.
+   - 4E-BP1 (already N31, currently a homotypic negative) × eIF4E (1WKW) as a heterotypic
+     mutual-folding **positive** — reuses a sequence already in the set as both a negative
+     (homotypic self-association) and a positive (heterotypic binding), which is exactly
+     the matched-internal logic.
+   - c-Myc TAD × Bin1 MBD or c-Myc TAD × Max (1NKP) as a second bHLHZ-family positive,
+     matched against the existing MAX/GCN4/Fos/Jun hard-zipper negatives.
 
 ## 5. What stage 1 found
 
@@ -149,7 +177,9 @@ Ordered by how likely they are to matter.
 1. **Templates were on for all 95 chain entries**, by server default — the batch files are
    dialect v1 and never set `useStructureTemplate`, and the server upgraded them to v3 with
    it `true`. 6es7 templates both chains of P06 *and* N26 and N27; 1fos templates P07 *and*
-   N15, N16, N17, N28. Until §4 step 2 runs, every memorisation statement is provisional.
+   N15, N16, N17, N28. **Resolved by §4 item 2**: templates off moves 8/9 rerun jobs by
+   ≤0.05 ipTM, so the memorisation and hard-zipper findings are not template artefacts.
+   N28 is the one job of the ten not yet rerun without templates.
 2. **21 of 31 negatives rest on `inferred` or `absence_only` evidence.** "No paper reports
    this interaction" is not "these do not interact". Stage 1 makes this concrete rather than
    resolving it: the gold-standard subset inverts, but it is length- and foldability-
